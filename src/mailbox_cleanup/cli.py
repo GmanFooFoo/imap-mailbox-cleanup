@@ -1,5 +1,6 @@
 import json
 import sys
+from collections import Counter
 
 import click
 
@@ -123,3 +124,37 @@ def scan_cmd(email: str, folder: str, json_mode: bool):
             count = data.get("count") if isinstance(data, dict) else None
             if count is not None:
                 click.echo(f"  {name}: {count}")
+
+
+@cli.command("senders")
+@click.option("--email", required=True)
+@click.option("--folder", default="INBOX", show_default=True)
+@click.option("--top", default=50, show_default=True, type=int)
+@click.option("--json", "json_mode", is_flag=True)
+def senders_cmd(email: str, folder: str, top: int, json_mode: bool):
+    """List the top-N senders by message count."""
+    try:
+        creds = get_credentials(email)
+    except AuthMissingError as e:
+        _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
+        return
+    try:
+        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+            mb.folder.set(folder)
+            counter: Counter[str] = Counter()
+            for m in mb.fetch(headers_only=True, mark_seen=False, bulk=True):
+                if m.from_:
+                    counter[m.from_.strip()] += 1
+    except Exception as e:
+        _fail({"error_code": "connection_error", "message": str(e)}, 2, json_mode)
+        return
+    payload = {
+        "schema_version": SCHEMA_VERSION,
+        "folder": folder,
+        "senders": [{"sender": s, "count": c} for s, c in counter.most_common(top)],
+    }
+    if json_mode:
+        click.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        for entry in payload["senders"]:
+            click.echo(f"{entry['count']:6d}  {entry['sender']}")
