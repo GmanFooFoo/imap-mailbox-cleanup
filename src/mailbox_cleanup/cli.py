@@ -12,12 +12,18 @@ from .auth import (
     get_credentials,
     set_credentials,
 )
+from .folders import resolve_folder
 from .imap_client import imap_connect
 from .operations.archive import run_archive
 from .operations.attachments import run_attachments
 from .operations.dedupe import run_dedupe
 from .operations.delete import run_delete
 from .operations.move import run_move
+from .operations.unsubscribe import (
+    UnsubAction,
+    collect_unsub_targets,
+    perform_unsubscribe,
+)
 from .scan import build_report
 
 _DEFAULT_PORT = 993
@@ -429,3 +435,68 @@ def attachments_cmd(email, folder, size_gt, older_than, json_mode):
         click.echo(f"Found {len(res.candidates)} large messages:")
         for c in res.candidates[:20]:
             click.echo(f"  {c['size_mb']:>6.1f} MB  {c['from']}  {c['subject']}")
+
+
+@cli.command("unsubscribe")
+@click.option("--email", required=True)
+@click.option("--folder", default="INBOX", show_default=True)
+@click.option("--sender", required=True)
+@click.option("--apply", is_flag=True)
+@click.option("--json", "json_mode", is_flag=True)
+def unsubscribe_cmd(email, folder, sender, apply, json_mode):
+    """Parse List-Unsubscribe header for sender, optionally execute (HTTPS or mailto)."""
+    try:
+        creds = get_credentials(email)
+    except AuthMissingError as e:
+        _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
+        return
+    try:
+        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+            data = collect_unsub_targets(mb, sender=sender, folder=folder)
+            uids = data["uids"]
+            actions = data["actions"]
+            results: list[dict] = []
+            if apply:
+                # Take the first (preferred) action — already sorted https-first
+                if actions:
+                    a = UnsubAction(**{k: actions[0][k] for k in ("kind", "target", "one_click")})
+                    ok, info = perform_unsubscribe(
+                        a,
+                        smtp_sender=creds.email,
+                        smtp_password=creds.password,
+                    )
+                    results.append({"action": actions[0], "ok": ok, "info": info})
+                # Move matching messages to Trash regardless of unsubscribe success
+                trash = resolve_folder(mb, "trash")
+                if trash and uids:
+                    mb.move(uids, trash)
+    except Exception as e:
+        _fail({"error_code": "operation_error", "message": str(e)}, 2, json_mode)
+        return
+    payload = {
+        "ok": True,
+        "schema_version": SCHEMA_VERSION,
+        "subcommand": "unsubscribe",
+        "dry_run": not apply,
+        "folder": folder,
+        "sender": sender,
+        "matching_count": len(uids),
+        "actions": actions,
+        "results": results,
+    }
+    if apply:
+        log_action(
+            subcommand="unsubscribe",
+            args={"sender": sender},
+            folder=folder,
+            affected_uids=uids,
+            result="success" if not results or results[0]["ok"] else "partial",
+        )
+    if json_mode:
+        click.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        verb = "Performed" if apply else "Would attempt"
+        click.echo(
+            f"{verb} unsubscribe for {sender}: "
+            f"{len(actions)} action(s) found, {len(uids)} matching messages"
+        )
