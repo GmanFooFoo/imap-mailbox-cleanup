@@ -529,7 +529,7 @@ services:
       - "3143:3143"   # IMAP (plain — avoids self-signed cert issues in tests)
       - "3025:3025"   # SMTP
     environment:
-      GREENMAIL_OPTS: "-Dgreenmail.setup.test.imap -Dgreenmail.setup.test.smtp -Dgreenmail.users=test:test@localhost -Dgreenmail.auth.disabled -Dgreenmail.verbose"
+      GREENMAIL_OPTS: "-Dgreenmail.setup.test.imap -Dgreenmail.setup.test.smtp -Dgreenmail.users=test:test@localhost -Dgreenmail.auth.disabled -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.verbose"
 ```
 
 - [ ] **Step 2: Create fixture .eml files**
@@ -748,14 +748,14 @@ pytestmark = pytest.mark.integration
 
 def test_connect_to_greenmail_lists_inbox(seeded_mailbox):
     g = seeded_mailbox
-    creds = Credentials(email=f"{g['user']}@localhost", password=g["password"], server=g["host"])
+    creds = Credentials(email=g["user"], password=g["password"], server=g["host"])
     with imap_connect(creds, port=g["port"]) as mb:
         folders = [f.name for f in mb.folder.list()]
         assert "INBOX" in folders
 
 
 def test_connect_with_wrong_password_raises(greenmail):
-    creds = Credentials(email="test@localhost", password="WRONG", server=greenmail["host"])
+    creds = Credentials(email="test", password="WRONG", server=greenmail["host"])
     with pytest.raises(IMAPConnectionError):
         with imap_connect(creds, port=greenmail["port"], max_retries=0):
             pass
@@ -763,7 +763,7 @@ def test_connect_with_wrong_password_raises(greenmail):
 
 def test_seeded_mailbox_has_four_messages(seeded_mailbox):
     g = seeded_mailbox
-    creds = Credentials(email=f"{g['user']}@localhost", password=g["password"], server=g["host"])
+    creds = Credentials(email=g["user"], password=g["password"], server=g["host"])
     with imap_connect(creds, port=g["port"]) as mb:
         msgs = list(mb.fetch())
         assert len(msgs) == 4
@@ -1217,13 +1217,13 @@ def test_scan_cli_emits_json(seeded_mailbox, monkeypatch):
     from mailbox_cleanup import cli as cli_mod
 
     def fake_get_credentials(email):
-        return Credentials(email=f"{g['user']}@localhost", password=g["password"], server=g["host"])
+        return Credentials(email=g["user"], password=g["password"], server=g["host"])
 
     monkeypatch.setattr(cli_mod, "get_credentials", fake_get_credentials)
     monkeypatch.setattr(cli_mod, "_DEFAULT_PORT", g["port"])
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["scan", "--email", "test@localhost", "--json"])
+    result = runner.invoke(cli, ["scan", "--email", "test", "--json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["total_messages"] == 4
@@ -1507,12 +1507,12 @@ def test_senders_lists_top_n(seeded_mailbox, monkeypatch):
 
     monkeypatch.setattr(
         cli_mod, "get_credentials",
-        lambda email: Credentials(email=f"{g['user']}@localhost", password=g["password"], server=g["host"]),
+        lambda email: Credentials(email=g["user"], password=g["password"], server=g["host"]),
     )
     monkeypatch.setattr(cli_mod, "_DEFAULT_PORT", g["port"])
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["senders", "--email", "test@localhost", "--top", "5", "--json"])
+    result = runner.invoke(cli, ["senders", "--email", "test", "--top", "5", "--json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert "senders" in data
@@ -2021,7 +2021,7 @@ def _make_runner_env(seeded_mailbox, monkeypatch, tmp_path):
     from mailbox_cleanup import cli as cli_mod
     monkeypatch.setattr(
         cli_mod, "get_credentials",
-        lambda email: Credentials(email=f"{g['user']}@localhost", password=g["password"], server=g["host"]),
+        lambda email: Credentials(email=g["user"], password=g["password"], server=g["host"]),
     )
     monkeypatch.setattr(cli_mod, "_DEFAULT_PORT", g["port"])
     monkeypatch.setenv("MAILBOX_CLEANUP_AUDIT_LOG", str(tmp_path / "audit.log"))
@@ -2031,7 +2031,7 @@ def test_delete_dry_run_does_not_modify(seeded_mailbox, monkeypatch, tmp_path):
     _make_runner_env(seeded_mailbox, monkeypatch, tmp_path)
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "delete", "--email", "test@localhost",
+        "delete", "--email", "test",
         "--sender", "newsletter@linkedin.com",
         "--json",
     ])
@@ -2046,7 +2046,7 @@ def test_delete_apply_moves_to_trash(seeded_mailbox, monkeypatch, tmp_path):
     _make_runner_env(seeded_mailbox, monkeypatch, tmp_path)
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "delete", "--email", "test@localhost",
+        "delete", "--email", "test",
         "--sender", "newsletter@linkedin.com",
         "--apply", "--json",
     ])
@@ -2064,7 +2064,7 @@ def test_delete_apply_moves_to_trash(seeded_mailbox, monkeypatch, tmp_path):
 def test_delete_without_filter_returns_4(seeded_mailbox, monkeypatch, tmp_path):
     _make_runner_env(seeded_mailbox, monkeypatch, tmp_path)
     runner = CliRunner()
-    result = runner.invoke(cli, ["delete", "--email", "test@localhost", "--json"])
+    result = runner.invoke(cli, ["delete", "--email", "test", "--json"])
     assert result.exit_code == 4
 ```
 
@@ -2120,14 +2120,14 @@ def test_move_apply_moves_to_named_folder(seeded_mailbox, monkeypatch, tmp_path)
 
     monkeypatch.setattr(
         cli_mod, "get_credentials",
-        lambda email: Credentials(email=f"{g['user']}@localhost", password=g["password"], server=g["host"]),
+        lambda email: Credentials(email=g["user"], password=g["password"], server=g["host"]),
     )
     monkeypatch.setattr(cli_mod, "_DEFAULT_PORT", g["port"])
     monkeypatch.setenv("MAILBOX_CLEANUP_AUDIT_LOG", str(tmp_path / "audit.log"))
 
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "move", "--email", "test@localhost",
+        "move", "--email", "test",
         "--sender", "alice@example.com",
         "--to", "Triage",
         "--apply", "--json",
@@ -2734,14 +2734,14 @@ def test_attachments_cli_lists_only_no_strip(seeded_mailbox, monkeypatch, tmp_pa
     from mailbox_cleanup import cli as cli_mod
     monkeypatch.setattr(
         cli_mod, "get_credentials",
-        lambda email: Credentials(email=f"{g['user']}@localhost", password=g["password"], server=g["host"]),
+        lambda email: Credentials(email=g["user"], password=g["password"], server=g["host"]),
     )
     monkeypatch.setattr(cli_mod, "_DEFAULT_PORT", g["port"])
     monkeypatch.setenv("MAILBOX_CLEANUP_AUDIT_LOG", str(tmp_path / "audit.log"))
 
     runner = CliRunner()
     result = runner.invoke(cli, [
-        "attachments", "--email", "test@localhost",
+        "attachments", "--email", "test",
         "--size-gt=1b",  # all fixture mails will exceed
         "--json",
     ])
@@ -3192,7 +3192,7 @@ def _env(seeded_mailbox, monkeypatch, tmp_path):
     from mailbox_cleanup import cli as cli_mod
     monkeypatch.setattr(
         cli_mod, "get_credentials",
-        lambda email: Credentials(email=f"{g['user']}@localhost", password=g["password"], server=g["host"]),
+        lambda email: Credentials(email=g["user"], password=g["password"], server=g["host"]),
     )
     monkeypatch.setattr(cli_mod, "_DEFAULT_PORT", g["port"])
     monkeypatch.setenv("MAILBOX_CLEANUP_AUDIT_LOG", str(tmp_path / "audit.log"))
@@ -3201,7 +3201,7 @@ def _env(seeded_mailbox, monkeypatch, tmp_path):
 def test_bounces_dry_run_finds_mailer_daemon(seeded_mailbox, monkeypatch, tmp_path):
     _env(seeded_mailbox, monkeypatch, tmp_path)
     runner = CliRunner()
-    result = runner.invoke(cli, ["bounces", "--email", "test@localhost", "--json"])
+    result = runner.invoke(cli, ["bounces", "--email", "test", "--json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["dry_run"] is True
@@ -3211,7 +3211,7 @@ def test_bounces_dry_run_finds_mailer_daemon(seeded_mailbox, monkeypatch, tmp_pa
 def test_bounces_apply_moves_to_trash(seeded_mailbox, monkeypatch, tmp_path):
     _env(seeded_mailbox, monkeypatch, tmp_path)
     runner = CliRunner()
-    result = runner.invoke(cli, ["bounces", "--email", "test@localhost", "--apply", "--json"])
+    result = runner.invoke(cli, ["bounces", "--email", "test", "--apply", "--json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["dry_run"] is False
