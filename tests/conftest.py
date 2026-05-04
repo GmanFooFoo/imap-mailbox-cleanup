@@ -12,14 +12,6 @@ COMPOSE_FILE = Path(__file__).parent / "docker-compose.test.yml"
 IMAP_PORT = 3143  # Greenmail plain IMAP
 
 
-def _port_open(host: str, port: int, timeout: float = 1.0) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
-
-
 def _imap_ready(host: str, port: int, timeout: float = 2.0) -> bool:
     """Greenmail opens the TCP port before the IMAP listener is fully up.
     Verify by reading the IMAP greeting line."""
