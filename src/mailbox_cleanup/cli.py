@@ -5,6 +5,7 @@ from collections import Counter
 import click
 
 from . import SCHEMA_VERSION
+from .audit import log_action
 from .auth import (
     AuthMissingError,
     delete_credentials,
@@ -12,6 +13,7 @@ from .auth import (
     set_credentials,
 )
 from .imap_client import imap_connect
+from .operations.delete import run_delete
 from .scan import build_report
 
 _DEFAULT_PORT = 993
@@ -158,3 +160,83 @@ def senders_cmd(email: str, folder: str, top: int, json_mode: bool):
     else:
         for entry in payload["senders"]:
             click.echo(f"{entry['count']:6d}  {entry['sender']}")
+
+
+def _require_filter(sender, subject_contains, older_than, json_mode):
+    if not any([sender, subject_contains, older_than]):
+        _fail(
+            {
+                "error_code": "bad_args",
+                "message": (
+                    "At least one filter required "
+                    "(--sender / --subject-contains / --older-than)"
+                ),
+            },
+            4, json_mode,
+        )
+
+
+@cli.command("delete")
+@click.option("--email", required=True)
+@click.option("--folder", default="INBOX", show_default=True)
+@click.option("--sender", default=None)
+@click.option("--subject-contains", default=None)
+@click.option("--older-than", default=None, help="e.g. 30d, 2w, 3m, 1y")
+@click.option("--limit", default=None, type=int)
+@click.option(
+    "--apply",
+    is_flag=True,
+    help="Actually move to Trash. Without --apply this is a dry-run.",
+)
+@click.option("--json", "json_mode", is_flag=True)
+def delete_cmd(email, folder, sender, subject_contains, older_than, limit, apply, json_mode):
+    """Soft-delete messages matching filter (move to Trash)."""
+    _require_filter(sender, subject_contains, older_than, json_mode)
+    try:
+        creds = get_credentials(email)
+    except AuthMissingError as e:
+        _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
+        return
+    try:
+        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+            res = run_delete(
+                mb,
+                folder=folder,
+                sender=sender,
+                subject_contains=subject_contains,
+                older_than=older_than,
+                apply=apply,
+                limit=limit,
+            )
+    except Exception as e:
+        _fail({"error_code": "operation_error", "message": str(e)}, 2, json_mode)
+        return
+    payload = {
+        "ok": True,
+        "schema_version": SCHEMA_VERSION,
+        "subcommand": "delete",
+        "dry_run": res.dry_run,
+        "folder": res.folder,
+        "target_folder": res.target_folder,
+        "affected_count": len(res.affected_uids),
+        "affected_uids": res.affected_uids,
+        "sample": res.sample,
+    }
+    if apply:
+        log_action(
+            subcommand="delete",
+            args={
+                "sender": sender,
+                "subject_contains": subject_contains,
+                "older_than": older_than,
+                "limit": limit,
+            },
+            folder=folder,
+            affected_uids=res.affected_uids,
+            result="success",
+        )
+    if json_mode:
+        click.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        verb = "Moved" if apply else "Would move"
+        click.echo(f"{verb} {len(res.affected_uids)} messages to {res.target_folder!r}")
