@@ -2,7 +2,7 @@
 
 Hybrid CLI + Claude Code Skill for triaging and cleaning up an IONOS IMAP mailbox. Dry-run by default, audit-logged, soft-delete-only.
 
-[![CI](https://github.com/GmanFooFoo/mailbox-cleanup/actions/workflows/ci.yml/badge.svg)](https://github.com/GmanFooFoo/mailbox-cleanup/actions/workflows/ci.yml)
+[![CI](https://github.com/GmanFooFoo/imap-mailbox-cleanup/actions/workflows/ci.yml/badge.svg)](https://github.com/GmanFooFoo/imap-mailbox-cleanup/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -53,12 +53,12 @@ IONOS IMAP
 Requires Python 3.11+ and [`uv`](https://docs.astral.sh/uv/) (`brew install uv`).
 
 ```bash
-git clone https://github.com/GmanFooFoo/mailbox-cleanup.git
-cd mailbox-cleanup
+git clone https://github.com/GmanFooFoo/imap-mailbox-cleanup.git
+cd imap-mailbox-cleanup
 uv tool install --editable .
 ```
 
-This puts `mailbox-cleanup` on your `PATH` (typically `~/.local/bin/mailbox-cleanup`).
+This puts `mailbox-cleanup` on your `PATH` (typically `~/.local/bin/mailbox-cleanup`). The CLI binary keeps the short name `mailbox-cleanup`; only the GitHub repo is `imap-mailbox-cleanup`.
 
 ### One-time auth
 
