@@ -14,6 +14,7 @@ from .auth import (
 )
 from .imap_client import imap_connect
 from .operations.archive import run_archive
+from .operations.attachments import run_attachments
 from .operations.dedupe import run_dedupe
 from .operations.delete import run_delete
 from .operations.move import run_move
@@ -388,3 +389,43 @@ def dedupe_cmd(email, folder, apply, json_mode):
             f"{verb} {len(res.duplicate_uids)} duplicates "
             f"from {len(res.groups)} groups to Trash"
         )
+
+
+@cli.command("attachments")
+@click.option("--email", required=True)
+@click.option("--folder", default="INBOX", show_default=True)
+@click.option("--size-gt", default="10mb", show_default=True)
+@click.option("--older-than", default=None)
+@click.option("--json", "json_mode", is_flag=True)
+def attachments_cmd(email, folder, size_gt, older_than, json_mode):
+    """Find large messages. Stripping deferred to v2 — this lists candidates only."""
+    try:
+        creds = get_credentials(email)
+    except AuthMissingError as e:
+        _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
+        return
+    try:
+        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+            res = run_attachments(mb, folder=folder, size_gt=size_gt, older_than=older_than)
+    except Exception as e:
+        _fail({"error_code": "operation_error", "message": str(e)}, 2, json_mode)
+        return
+    payload = {
+        "ok": True,
+        "schema_version": SCHEMA_VERSION,
+        "subcommand": "attachments",
+        "dry_run": res.dry_run,
+        "folder": res.folder,
+        "candidate_count": len(res.candidates),
+        "candidates": res.candidates,
+        "note": (
+            "v1 lists candidates only; "
+            "pipe to `delete --sender=... --apply` to remove specific senders."
+        ),
+    }
+    if json_mode:
+        click.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        click.echo(f"Found {len(res.candidates)} large messages:")
+        for c in res.candidates[:20]:
+            click.echo(f"  {c['size_mb']:>6.1f} MB  {c['from']}  {c['subject']}")
