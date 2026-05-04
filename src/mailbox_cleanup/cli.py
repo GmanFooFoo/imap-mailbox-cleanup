@@ -14,11 +14,14 @@ from .auth import (
     get_credentials,
     set_credentials,
 )
+from .cli_helpers import AccountFlagsError, resolve_account_and_credentials
 from .config import (
+    Account,
     Config,
     ConfigError,
     bootstrap_from_v01_keychain,
     config_path,
+    derive_alias_from_email,
     load_config,
     save_config,
 )
@@ -66,44 +69,100 @@ def auth():
 
 
 @auth.command("set")
-@click.option("--email", required=True, help="IONOS email address.")
+@click.option(
+    "--alias",
+    default=None,
+    help="Slug alias for the account (optional; derived from email).",
+)
+@click.option("--email", required=True, help="Email address.")
 @click.option("--server", default="imap.ionos.de", show_default=True)
-@click.password_option(confirmation_prompt=False, prompt="IONOS password")
-def auth_set(email: str, server: str, password: str):
-    """Write IONOS credentials into macOS Keychain."""
+@click.option("--port", default=993, show_default=True, type=int)
+@click.option("--provider", default=None, help="Override auto-derived provider label.")
+@click.option("--make-default", is_flag=True, help="Set this account as the default.")
+@click.password_option(confirmation_prompt=False, prompt="Password")
+def auth_set(alias, email, server, port, provider, make_default, password):
+    """Store credentials in Keychain and add the account to the config."""
+    if config_path().exists():
+        cfg = load_config()
+    else:
+        cfg = Config(default=None, accounts=())
+
+    final_alias = alias or derive_alias_from_email(email)
+
+    if any(a.alias == final_alias for a in cfg.accounts):
+        _fail(
+            {"error_code": "duplicate_alias", "message": f"Alias {final_alias!r} already exists"},
+            4,
+            json_mode=False,
+        )
+        return
+    if any(a.email == email for a in cfg.accounts):
+        _fail(
+            {"error_code": "duplicate_email", "message": f"Email {email!r} already exists"},
+            4,
+            json_mode=False,
+        )
+        return
+
+    new_account = Account(
+        alias=final_alias,
+        email=email,
+        server=server,
+        port=port,
+        provider=provider or "",
+    )
+    new_accounts = (*cfg.accounts, new_account)
+    new_default = cfg.default
+    if make_default or new_default is None:
+        new_default = final_alias
     set_credentials(email, password, server)
-    click.echo(f"Credentials stored for {email} on {server}.")
+    save_config(Config(default=new_default, accounts=new_accounts))
+    click.echo(
+        f"Stored credentials for {email} (alias: {final_alias}, server: {server})."
+    )
 
 
 @auth.command("test")
-@click.option("--email", required=True)
+@click.option("--account", "account_flag", default=None, help="Alias or email.")
+@click.option("--email", "email_flag", default=None, help="Deprecated; use --account.")
 @click.option("--json", "json_mode", is_flag=True)
-def auth_test(email: str, json_mode: bool):
+def auth_test(account_flag, email_flag, json_mode):
     """Connect to IMAP, list folders, disconnect."""
     try:
-        creds = get_credentials(email)
+        account, creds = resolve_account_and_credentials(
+            account_flag=account_flag, email_flag=email_flag
+        )
+    except AccountFlagsError as e:
+        _fail(
+            {"error_code": e.error_code, "message": str(e)},
+            4,
+            json_mode,
+        )
+        return
     except AuthMissingError as e:
         _fail(
             {"error_code": "auth_missing", "message": str(e)},
-            exit_code=3,
-            json_mode=json_mode,
+            3,
+            json_mode,
         )
         return
+
     try:
         with imap_connect(creds) as mb:
             folders = [f.name for f in mb.folder.list()]
     except Exception as e:
         _fail(
             {"error_code": "connection_error", "message": str(e)},
-            exit_code=2,
-            json_mode=json_mode,
+            2,
+            json_mode,
         )
         return
     _emit(
         {
             "ok": True,
-            "email": email,
-            "server": creds.server,
+            "account": account.alias,
+            "email": account.email,
+            "server": account.server,
             "folders": folders,
             "schema_version": SCHEMA_VERSION,
         },
@@ -112,11 +171,35 @@ def auth_test(email: str, json_mode: bool):
 
 
 @auth.command("delete")
-@click.option("--email", required=True)
-def auth_delete(email: str):
-    """Remove credentials from Keychain."""
-    delete_credentials(email)
-    click.echo(f"Credentials removed for {email}.")
+@click.option("--account", "account_flag", default=None)
+@click.option("--email", "email_flag", default=None, help="Deprecated; use --account.")
+def auth_delete(account_flag, email_flag):
+    """Remove an account from config AND its password from Keychain."""
+    try:
+        account, _ = resolve_account_and_credentials(
+            account_flag=account_flag, email_flag=email_flag
+        )
+    except AccountFlagsError as e:
+        _fail(
+            {"error_code": e.error_code, "message": str(e)},
+            4,
+            json_mode=False,
+        )
+        return
+    except AuthMissingError as e:
+        _fail(
+            {"error_code": "auth_missing", "message": str(e)},
+            3,
+            json_mode=False,
+        )
+        return
+
+    cfg = load_config()
+    new_accounts = tuple(a for a in cfg.accounts if a.alias != account.alias)
+    new_default = cfg.default if cfg.default != account.alias else None
+    save_config(Config(default=new_default, accounts=new_accounts))
+    delete_credentials(account.email)
+    click.echo(f"Removed account {account.alias} ({account.email}).")
 
 
 @cli.group("config")
