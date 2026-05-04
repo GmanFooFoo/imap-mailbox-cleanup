@@ -1039,8 +1039,8 @@ Expected: ImportError.
 ```python
 """Classification rules — pure functions over message metadata."""
 
-from enum import Enum
-from typing import Mapping
+from collections.abc import Mapping
+from enum import StrEnum
 
 LARGE_ATTACHMENT_BYTES = 10 * 1024 * 1024  # 10 MB
 
@@ -1061,7 +1061,7 @@ BOUNCE_SUBJECT_PREFIXES = (
 )
 
 
-class Category(str, Enum):
+class Category(StrEnum):
     NEWSLETTER = "newsletter"
     AUTOMATED = "automated"
     BOUNCE = "bounce"
@@ -1685,7 +1685,7 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 AUDIT_LOG_PATH_ENV = "MAILBOX_CLEANUP_AUDIT_LOG"
 DEFAULT_AUDIT_LOG = Path.home() / ".mailbox-cleanup" / "audit.log"
