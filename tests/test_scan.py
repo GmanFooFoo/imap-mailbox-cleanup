@@ -21,16 +21,32 @@ def _msg(from_addr, subject, size, msg_id, date, headers=None):
 
 def test_build_report_counts_categories():
     msgs = [
-        _msg("newsletter@linkedin.com", "weekly", 5000,
-             "<n1@x>", datetime(2025, 1, 1, tzinfo=UTC),
-             headers={"list-unsubscribe": "<https://x>"}),
-        _msg("newsletter@linkedin.com", "weekly", 5000,
-             "<n2@x>", datetime(2025, 2, 1, tzinfo=UTC),
-             headers={"list-unsubscribe": "<https://x>"}),
-        _msg("MAILER-DAEMON@ionos.de", "Undelivered Mail", 2000,
-             "<b1@x>", datetime(2025, 3, 1, tzinfo=UTC)),
-        _msg("alice@example.com", "lunch", 15_000_000,
-             "<plain@x>", datetime(2026, 1, 1, tzinfo=UTC)),
+        _msg(
+            "newsletter@linkedin.com",
+            "weekly",
+            5000,
+            "<n1@x>",
+            datetime(2025, 1, 1, tzinfo=UTC),
+            headers={"list-unsubscribe": "<https://x>"},
+        ),
+        _msg(
+            "newsletter@linkedin.com",
+            "weekly",
+            5000,
+            "<n2@x>",
+            datetime(2025, 2, 1, tzinfo=UTC),
+            headers={"list-unsubscribe": "<https://x>"},
+        ),
+        _msg(
+            "MAILER-DAEMON@ionos.de",
+            "Undelivered Mail",
+            2000,
+            "<b1@x>",
+            datetime(2025, 3, 1, tzinfo=UTC),
+        ),
+        _msg(
+            "alice@example.com", "lunch", 15_000_000, "<plain@x>", datetime(2026, 1, 1, tzinfo=UTC)
+        ),
     ]
     report = build_report(msgs, folder="INBOX", now=datetime(2026, 5, 4, tzinfo=UTC))
 
@@ -48,11 +64,27 @@ def test_build_report_counts_categories():
 def test_build_report_top_senders_sorted():
     msgs = []
     for i in range(5):
-        msgs.append(_msg("a@news.com", "x", 1000, f"<a{i}>", datetime(2025, 1, 1, tzinfo=UTC),
-                         headers={"list-unsubscribe": "<https://x>"}))
+        msgs.append(
+            _msg(
+                "a@news.com",
+                "x",
+                1000,
+                f"<a{i}>",
+                datetime(2025, 1, 1, tzinfo=UTC),
+                headers={"list-unsubscribe": "<https://x>"},
+            )
+        )
     for i in range(2):
-        msgs.append(_msg("b@news.com", "x", 1000, f"<b{i}>", datetime(2025, 1, 1, tzinfo=UTC),
-                         headers={"list-unsubscribe": "<https://x>"}))
+        msgs.append(
+            _msg(
+                "b@news.com",
+                "x",
+                1000,
+                f"<b{i}>",
+                datetime(2025, 1, 1, tzinfo=UTC),
+                headers={"list-unsubscribe": "<https://x>"},
+            )
+        )
     report = build_report(msgs, folder="INBOX", now=datetime(2026, 5, 4, tzinfo=UTC))
     senders = report["categories"]["newsletters"]["top_senders"]
     assert senders[0]["sender"] == "a@news.com"

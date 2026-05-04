@@ -56,6 +56,7 @@ def greenmail():
 def _seed_mailbox(host: str, port: int, user: str, password: str, eml_files: list[Path]):
     """Append .eml files into INBOX via SMTP."""
     import smtplib
+
     smtp = smtplib.SMTP("127.0.0.1", 3025)
     for eml in eml_files:
         with open(eml, "rb") as f:

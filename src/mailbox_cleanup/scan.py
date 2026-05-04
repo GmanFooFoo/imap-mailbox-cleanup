@@ -73,12 +73,14 @@ def build_report(messages: Iterable, *, folder: str, now: datetime | None = None
             bounces.append({"uid": m.uid, "from": from_addr, "subject": subject})
         if Category.LARGE_ATTACHMENT in cats:
             large_size += size
-            large.append({
-                "uid": m.uid,
-                "subject": subject,
-                "size_mb": round(size / 1024 / 1024, 1),
-                "from": from_addr,
-            })
+            large.append(
+                {
+                    "uid": m.uid,
+                    "subject": subject,
+                    "size_mb": round(size / 1024 / 1024, 1),
+                    "from": from_addr,
+                }
+            )
 
         # Duplicates by Message-ID
         msg_id = headers.get("message-id")
@@ -98,9 +100,7 @@ def build_report(messages: Iterable, *, folder: str, now: datetime | None = None
                 older_60 += 1
 
     duplicates = [
-        {"message_id": mid, "uids": uids}
-        for mid, uids in msg_id_uids.items()
-        if len(uids) > 1
+        {"message_id": mid, "uids": uids} for mid, uids in msg_id_uids.items() if len(uids) > 1
     ]
     duplicate_count = sum(len(d["uids"]) - 1 for d in duplicates)
 
@@ -123,17 +123,21 @@ def build_report(messages: Iterable, *, folder: str, now: datetime | None = None
             "automated_notifications": {
                 "count": sum(auto_counter.values()),
                 "top_senders": [
-                    {"sender": s, "count": c}
-                    for s, c in auto_counter.most_common(TOP_N)
+                    {"sender": s, "count": c} for s, c in auto_counter.most_common(TOP_N)
                 ],
             },
             "bounces_and_autoreplies": {
-                "count": sum(1 for m in msgs if Category.BOUNCE in classify(
-                    from_addr=(m.from_ or "").strip(),
-                    subject=m.subject or "",
-                    headers=_flatten_headers(getattr(m, "headers", None)),
-                    size_bytes=getattr(m, "size", 0) or 0,
-                )),
+                "count": sum(
+                    1
+                    for m in msgs
+                    if Category.BOUNCE
+                    in classify(
+                        from_addr=(m.from_ or "").strip(),
+                        subject=m.subject or "",
+                        headers=_flatten_headers(getattr(m, "headers", None)),
+                        size_bytes=getattr(m, "size", 0) or 0,
+                    )
+                ),
                 "samples": bounces,
             },
             "large_attachments": {
@@ -169,12 +173,10 @@ def _recommendations(nl_counter, nl_unsub, auto_counter, large, large_size_bytes
             )
     for sender, count in auto_counter.most_common(3):
         recs.append(
-            f"{count} automated messages from {sender} → "
-            f"'delete --sender={sender} --older-than=6m'"
+            f"{count} automated messages from {sender} → 'delete --sender={sender} --older-than=6m'"
         )
     if large:
         recs.append(
-            f"{len(large)} attachments over 10 MB → "
-            f"'attachments --size-gt=10mb --older-than=6m'"
+            f"{len(large)} attachments over 10 MB → 'attachments --size-gt=10mb --older-than=6m'"
         )
     return recs

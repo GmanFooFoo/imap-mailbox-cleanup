@@ -14,9 +14,9 @@ _LINK_RE = re.compile(r"<([^>]+)>")
 
 @dataclass
 class UnsubAction:
-    kind: str         # "https" or "mailto"
-    target: str       # URL or mail address
-    one_click: bool   # only relevant for https
+    kind: str  # "https" or "mailto"
+    target: str  # URL or mail address
+    one_click: bool  # only relevant for https
 
 
 def parse_list_unsubscribe(
@@ -31,7 +31,7 @@ def parse_list_unsubscribe(
     for raw in _LINK_RE.findall(list_unsubscribe or ""):
         raw = raw.strip()
         if raw.startswith("mailto:"):
-            target = raw[len("mailto:"):].split("?", 1)[0]
+            target = raw[len("mailto:") :].split("?", 1)[0]
             actions.append(UnsubAction(kind="mailto", target=target, one_click=False))
         elif raw.startswith(("http://", "https://")):
             actions.append(UnsubAction(kind="https", target=raw, one_click=one_click))
@@ -85,10 +85,14 @@ def perform_unsubscribe(
 def collect_unsub_targets(mb, *, sender: str, folder: str = "INBOX") -> dict:
     """Find messages from sender, parse their List-Unsubscribe headers, return targets."""
     mb.folder.set(folder)
-    msgs = list(mb.fetch(
-        build_imap_search(sender=sender),
-        headers_only=True, mark_seen=False, bulk=True,
-    ))
+    msgs = list(
+        mb.fetch(
+            build_imap_search(sender=sender),
+            headers_only=True,
+            mark_seen=False,
+            bulk=True,
+        )
+    )
     seen: set[tuple[str, str]] = set()
     out: list[dict] = []
     uids: list[str] = []
@@ -103,15 +107,18 @@ def collect_unsub_targets(mb, *, sender: str, folder: str = "INBOX") -> dict:
         lu_val = lu[0] if isinstance(lu, tuple) else lu
         lup_val = (lup[0] if isinstance(lup, tuple) else lup) if lup else None
         for action in parse_list_unsubscribe(
-            list_unsubscribe=lu_val, list_unsubscribe_post=lup_val,
+            list_unsubscribe=lu_val,
+            list_unsubscribe_post=lup_val,
         ):
             key = (action.kind, action.target)
             if key in seen:
                 continue
             seen.add(key)
-            out.append({
-                "kind": action.kind,
-                "target": action.target,
-                "one_click": action.one_click,
-            })
+            out.append(
+                {
+                    "kind": action.kind,
+                    "target": action.target,
+                    "one_click": action.one_click,
+                }
+            )
     return {"uids": uids, "actions": out}

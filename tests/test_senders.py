@@ -11,7 +11,8 @@ def test_senders_lists_top_n(seeded_mailbox, monkeypatch):
     from mailbox_cleanup.auth import Credentials
 
     monkeypatch.setattr(
-        cli_mod, "get_credentials",
+        cli_mod,
+        "get_credentials",
         lambda email: Credentials(email=g["user"], password=g["password"], server=g["host"]),
     )
     monkeypatch.setattr(cli_mod, "_DEFAULT_PORT", g["port"])

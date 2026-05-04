@@ -33,8 +33,10 @@ def test_auth_test_success_json():
     sent = MagicMock()
     sent.name = "Sent"
     fake_client.__enter__.return_value.folder.list.return_value = [inbox, sent]
-    with patch("mailbox_cleanup.cli.get_credentials") as get_creds, \
-         patch("mailbox_cleanup.cli.imap_connect", return_value=fake_client):
+    with (
+        patch("mailbox_cleanup.cli.get_credentials") as get_creds,
+        patch("mailbox_cleanup.cli.imap_connect", return_value=fake_client),
+    ):
         get_creds.return_value = MagicMock(email="a@b.de", server="imap.ionos.de")
         result = runner.invoke(cli, ["auth", "test", "--email", "a@b.de", "--json"])
         assert result.exit_code == 0
@@ -46,6 +48,7 @@ def test_auth_test_success_json():
 
 def test_auth_test_missing_credentials_exit_3():
     from mailbox_cleanup.auth import AuthMissingError
+
     runner = CliRunner()
     with patch("mailbox_cleanup.cli.get_credentials", side_effect=AuthMissingError("no creds")):
         result = runner.invoke(cli, ["auth", "test", "--email", "a@b.de", "--json"])

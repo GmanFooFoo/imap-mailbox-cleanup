@@ -179,11 +179,11 @@ def _require_filter(sender, subject_contains, older_than, json_mode):
             {
                 "error_code": "bad_args",
                 "message": (
-                    "At least one filter required "
-                    "(--sender / --subject-contains / --older-than)"
+                    "At least one filter required (--sender / --subject-contains / --older-than)"
                 ),
             },
-            4, json_mode,
+            4,
+            json_mode,
         )
 
 
@@ -274,9 +274,14 @@ def move_cmd(email, folder, target, sender, subject_contains, older_than, limit,
     try:
         with imap_connect(creds, port=_DEFAULT_PORT) as mb:
             res = run_move(
-                mb, folder=folder, target=target,
-                sender=sender, subject_contains=subject_contains,
-                older_than=older_than, apply=apply, limit=limit,
+                mb,
+                folder=folder,
+                target=target,
+                sender=sender,
+                subject_contains=subject_contains,
+                older_than=older_than,
+                apply=apply,
+                limit=limit,
             )
     except Exception as e:
         _fail({"error_code": "operation_error", "message": str(e)}, 2, json_mode)
@@ -295,8 +300,13 @@ def move_cmd(email, folder, target, sender, subject_contains, older_than, limit,
     if apply:
         log_action(
             subcommand="move",
-            args={"to": target, "sender": sender, "subject_contains": subject_contains,
-                  "older_than": older_than, "limit": limit},
+            args={
+                "to": target,
+                "sender": sender,
+                "subject_contains": subject_contains,
+                "older_than": older_than,
+                "limit": limit,
+            },
             folder=folder,
             affected_uids=res.affected_uids,
             result="success",
@@ -385,16 +395,18 @@ def dedupe_cmd(email, folder, apply, json_mode):
     }
     if apply:
         log_action(
-            subcommand="dedupe", args={}, folder=folder,
-            affected_uids=res.duplicate_uids, result="success",
+            subcommand="dedupe",
+            args={},
+            folder=folder,
+            affected_uids=res.duplicate_uids,
+            result="success",
         )
     if json_mode:
         click.echo(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
         verb = "Moved" if apply else "Would move"
         click.echo(
-            f"{verb} {len(res.duplicate_uids)} duplicates "
-            f"from {len(res.groups)} groups to Trash"
+            f"{verb} {len(res.duplicate_uids)} duplicates from {len(res.groups)} groups to Trash"
         )
 
 
@@ -534,8 +546,11 @@ def bounces_cmd(email, folder, apply, json_mode):
     }
     if apply:
         log_action(
-            subcommand="bounces", args={}, folder=folder,
-            affected_uids=res.affected_uids, result="success",
+            subcommand="bounces",
+            args={},
+            folder=folder,
+            affected_uids=res.affected_uids,
+            result="success",
         )
     if json_mode:
         click.echo(json.dumps(payload, ensure_ascii=False, indent=2))

@@ -20,7 +20,8 @@ def run_bounces(mb, *, folder: str = "INBOX", apply: bool = False) -> BouncesRes
     mb.folder.set(folder)
     msgs = list(mb.fetch(headers_only=True, mark_seen=False, bulk=True))
     matched = [
-        m for m in msgs
+        m
+        for m in msgs
         if is_bounce(from_addr=(m.from_ or ""), subject=(m.subject or ""), headers={})
     ]
     uids = [m.uid for m in matched if m.uid]
@@ -30,6 +31,9 @@ def run_bounces(mb, *, folder: str = "INBOX", apply: bool = False) -> BouncesRes
             raise RuntimeError("Could not resolve Trash folder.")
         mb.move(uids, target)
     return BouncesResult(
-        dry_run=not apply, folder=folder, target_folder=target,
-        affected_uids=uids, sample=sample,
+        dry_run=not apply,
+        folder=folder,
+        target_folder=target,
+        affected_uids=uids,
+        sample=sample,
     )

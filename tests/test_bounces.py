@@ -9,8 +9,10 @@ def _env(seeded_mailbox, monkeypatch, tmp_path):
     g = seeded_mailbox
     from mailbox_cleanup import cli as cli_mod
     from mailbox_cleanup.auth import Credentials
+
     monkeypatch.setattr(
-        cli_mod, "get_credentials",
+        cli_mod,
+        "get_credentials",
         lambda email: Credentials(email=g["user"], password=g["password"], server=g["host"]),
     )
     monkeypatch.setattr(cli_mod, "_DEFAULT_PORT", g["port"])
@@ -32,6 +34,7 @@ def test_bounces_apply_moves_to_trash(seeded_mailbox, monkeypatch, tmp_path):
     # Greenmail does not auto-provision a Trash folder. Create one so the
     # SPECIAL-USE / fallback resolver can find it (it matches via literal name).
     from imap_tools import MailBoxUnencrypted
+
     g = seeded_mailbox
     with MailBoxUnencrypted(g["host"], port=g["port"]).login(g["user"], g["password"]) as mb:
         existing = {f.name for f in mb.folder.list()}

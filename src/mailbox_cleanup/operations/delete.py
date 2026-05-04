@@ -35,15 +35,13 @@ def run_delete(
     msgs = list(mb.fetch(criteria, headers_only=True, mark_seen=False, limit=limit, bulk=True))
     uids = [m.uid for m in msgs if m.uid]
     sample = [
-        {"uid": m.uid, "from": m.from_, "subject": m.subject, "date": str(m.date)}
-        for m in msgs[:5]
+        {"uid": m.uid, "from": m.from_, "subject": m.subject, "date": str(m.date)} for m in msgs[:5]
     ]
     target = resolve_folder(mb, "trash")
     if apply and uids:
         if not target:
             raise RuntimeError(
-                "Could not resolve Trash folder on server "
-                "(no SPECIAL-USE, no fallback match)."
+                "Could not resolve Trash folder on server (no SPECIAL-USE, no fallback match)."
             )
         mb.move(uids, target)
     return DeleteResult(

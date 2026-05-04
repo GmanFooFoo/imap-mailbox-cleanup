@@ -21,6 +21,7 @@ def test_parse_age_years_approx_365d():
 
 def test_parse_age_invalid():
     import pytest
+
     with pytest.raises(ValueError):
         parse_age("foobar")
 
@@ -46,5 +47,6 @@ def test_build_imap_search_combined():
 
 def test_build_imap_search_no_filters_raises():
     import pytest
+
     with pytest.raises(ValueError):
         build_imap_search()

@@ -7,8 +7,14 @@ LARGE_ATTACHMENT_BYTES = 10 * 1024 * 1024  # 10 MB
 
 NEWSLETTER_LOCAL_PARTS = {"newsletter", "noreply", "no-reply", "news", "marketing"}
 AUTOMATED_LOCAL_PARTS = {
-    "notifications", "notification", "bot", "service", "alerts",
-    "system", "daemon", "automation",
+    "notifications",
+    "notification",
+    "bot",
+    "service",
+    "alerts",
+    "system",
+    "daemon",
+    "automation",
 }
 BOUNCE_SENDER_LOCAL_PARTS = {"mailer-daemon", "postmaster"}
 BOUNCE_SUBJECT_PREFIXES = (

@@ -42,19 +42,26 @@ def test_attachments_cli_lists_only_no_strip(seeded_mailbox, monkeypatch, tmp_pa
     g = seeded_mailbox
     from mailbox_cleanup import cli as cli_mod
     from mailbox_cleanup.auth import Credentials
+
     monkeypatch.setattr(
-        cli_mod, "get_credentials",
+        cli_mod,
+        "get_credentials",
         lambda email: Credentials(email=g["user"], password=g["password"], server=g["host"]),
     )
     monkeypatch.setattr(cli_mod, "_DEFAULT_PORT", g["port"])
     monkeypatch.setenv("MAILBOX_CLEANUP_AUDIT_LOG", str(tmp_path / "audit.log"))
 
     runner = CliRunner()
-    result = runner.invoke(cli, [
-        "attachments", "--email", "test",
-        "--size-gt=1b",  # all fixture mails will exceed
-        "--json",
-    ])
+    result = runner.invoke(
+        cli,
+        [
+            "attachments",
+            "--email",
+            "test",
+            "--size-gt=1b",  # all fixture mails will exceed
+            "--json",
+        ],
+    )
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert "candidates" in data
