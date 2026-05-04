@@ -31,6 +31,9 @@ packages = ["src/mailbox_cleanup"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v"
+markers = [
+    "integration: tests that require Docker (Greenmail)",
+]
 
 [tool.ruff]
 line-length = 100
