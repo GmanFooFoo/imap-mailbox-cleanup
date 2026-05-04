@@ -56,3 +56,24 @@ def test_derive_alias_invalid_email_raises():
 
 def test_derive_alias_strips_leading_non_alnum():
     assert derive_alias_from_email("-foo@x.de") == "foo"
+
+
+def test_derive_alias_underscores_only_falls_back():
+    assert derive_alias_from_email("___@x.de") == "account"
+
+
+def test_derive_alias_dots_only_falls_back():
+    assert derive_alias_from_email("....@x.de") == "account"
+
+
+def test_derive_alias_digits_preserved():
+    assert derive_alias_from_email("0a@x.de") == "0a"
+
+
+def test_derive_alias_leading_digit_kept():
+    assert derive_alias_from_email("123abc@x.de") == "123abc"
+
+
+def test_derive_alias_unicode_stripped():
+    """Non-ASCII is dropped (documented behavior; ASCII-only aliases for v0.2)."""
+    assert derive_alias_from_email("müller@x.de") == "mller"

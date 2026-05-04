@@ -30,18 +30,19 @@ class ConfigError(Exception):
 def derive_alias_from_email(email: str) -> str:
     """Derive a slugified alias from an email's local-part.
 
-    Replaces `.` and `+` with `-`, lowercases, trims leading non-alphanumeric.
-    Raises ConfigError if the email has no local-part.
+    Replaces `.` and `+` with `-`, lowercases, drops other non-alphanumerics,
+    and trims leading hyphens/underscores so the result starts with [a-z0-9].
+    Falls back to "account" if no usable characters remain.
+    Raises ConfigError if the email has no `@`.
     """
     if "@" not in email:
         raise ConfigError(f"Invalid email (no @): {email!r}")
     local = email.split("@", 1)[0].lower()
     slug = re.sub(r"[.+]", "-", local)
     slug = re.sub(r"[^a-z0-9_-]", "", slug)
-    slug = slug.lstrip("-_0123456789")
+    slug = slug.lstrip("-_")
     if not slug:
-        # fallback: use cleaned local-part even if it starts with a digit/underscore
-        slug = re.sub(r"[^a-z0-9_-]", "", local) or "account"
-    if not _ALIAS_RE.match(slug):
+        slug = "account"
+    if not _ALIAS_RE.match(slug):  # defensive — should be unreachable
         raise ConfigError(f"Could not derive valid alias from {email!r}")
     return slug
