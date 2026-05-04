@@ -394,15 +394,14 @@ def test_resolve_unknown_env_raises():
         resolve_account(cfg, flag=None, env="nope")
 
 
-def test_resolve_inconsistent_default_raises():
+def test_resolve_inconsistent_default_asserts():
     """Edge case: cfg.default points at a non-existent alias (would normally fail
-    validate_config; but if reached, resolver must also fail with unknown_account)."""
-    # Construct directly to bypass validate_config
+    validate_config; if reached, resolver hits an internal-invariant assertion)."""
     cfg = Config(
         default="ghost",
         accounts=(Account(alias="real", email="r@x.de", server="imap.ionos.de"),),
     )
-    with pytest.raises(AccountResolutionError, match="unknown_account"):
+    with pytest.raises(AssertionError, match="invariant violated"):
         resolve_account(cfg, flag=None, env=None)
 
 

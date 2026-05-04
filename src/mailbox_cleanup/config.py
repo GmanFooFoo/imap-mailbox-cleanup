@@ -196,7 +196,7 @@ class AccountResolutionError(Exception):
     """
 
     def __init__(self, error_code: str, message: str):
-        super().__init__(message)
+        super().__init__(f"{error_code}: {message}")
         self.error_code = error_code
 
 
@@ -218,8 +218,7 @@ def resolve_account(cfg: Config, *, flag: str | None, env: str | None) -> Accoun
         if a is None:
             raise AccountResolutionError(
                 "unknown_account",
-                f"unknown_account: {flag!r}; known: "
-                f"{[x.alias for x in cfg.accounts]}",
+                f"{flag!r}; known: {[x.alias for x in cfg.accounts]}",
             )
         return a
     if env:
@@ -227,22 +226,22 @@ def resolve_account(cfg: Config, *, flag: str | None, env: str | None) -> Accoun
         if a is None:
             raise AccountResolutionError(
                 "unknown_account",
-                f"unknown_account in MAILBOX_CLEANUP_ACCOUNT={env!r}",
+                f"in MAILBOX_CLEANUP_ACCOUNT={env!r}",
             )
         return a
     if cfg.default:
         a = _find_account(cfg, cfg.default)
-        if a is not None:
-            return a
-        raise AccountResolutionError(
-            "unknown_account",
-            f"unknown_account: default {cfg.default!r} is not an existing alias",
+        # validate_config guarantees default points at an existing alias; this
+        # assertion catches Config instances built directly that bypass it.
+        assert a is not None, (
+            f"validate_config invariant violated: default {cfg.default!r} not in accounts"
         )
+        return a
     if len(cfg.accounts) == 1:
         return cfg.accounts[0]
     raise AccountResolutionError(
         "no_account_selected",
-        "no_account_selected: multiple accounts configured. "
-        "Specify --account=<alias>, set MAILBOX_CLEANUP_ACCOUNT=, or run "
+        "Multiple accounts configured. Specify --account=<alias>, "
+        "set MAILBOX_CLEANUP_ACCOUNT=, or run "
         "'mailbox-cleanup config set-default <alias>'.",
     )
