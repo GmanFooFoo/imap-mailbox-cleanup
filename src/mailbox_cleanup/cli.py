@@ -13,6 +13,7 @@ from .auth import (
     set_credentials,
 )
 from .imap_client import imap_connect
+from .operations.archive import run_archive
 from .operations.delete import run_delete
 from .operations.move import run_move
 from .scan import build_report
@@ -296,3 +297,50 @@ def move_cmd(email, folder, target, sender, subject_contains, older_than, limit,
     else:
         verb = "Moved" if apply else "Would move"
         click.echo(f"{verb} {len(res.affected_uids)} messages to {target!r}")
+
+
+@cli.command("archive")
+@click.option("--email", required=True)
+@click.option("--folder", default="INBOX", show_default=True)
+@click.option("--older-than", required=True, help="e.g. 12m, 2y")
+@click.option("--apply", is_flag=True)
+@click.option("--json", "json_mode", is_flag=True)
+def archive_cmd(email, folder, older_than, apply, json_mode):
+    """Bulk-move messages older than N into Archive/YYYY subfolders."""
+    try:
+        creds = get_credentials(email)
+    except AuthMissingError as e:
+        _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
+        return
+    try:
+        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+            res = run_archive(mb, folder=folder, older_than=older_than, apply=apply)
+    except Exception as e:
+        _fail({"error_code": "operation_error", "message": str(e)}, 2, json_mode)
+        return
+    affected = sum(g["count"] for g in res.groups)
+    payload = {
+        "ok": True,
+        "schema_version": SCHEMA_VERSION,
+        "subcommand": "archive",
+        "dry_run": res.dry_run,
+        "folder": res.folder,
+        "archive_root": res.archive_root,
+        "groups": res.groups,
+        "affected_count": affected,
+    }
+    if apply:
+        log_action(
+            subcommand="archive",
+            args={"older_than": older_than},
+            folder=folder,
+            affected_uids=[uid for g in res.groups for uid in g["uids"]],
+            result="success",
+        )
+    if json_mode:
+        click.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        verb = "Moved" if apply else "Would move"
+        click.echo(f"{verb} {affected} messages into {res.archive_root}/<year>")
+        for g in res.groups:
+            click.echo(f"  {g['year']}: {g['count']} → {g['target']}")
