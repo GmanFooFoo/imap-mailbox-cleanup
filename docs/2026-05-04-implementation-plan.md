@@ -328,10 +328,10 @@ def test_auth_set_writes_to_keychain():
 def test_auth_test_success_json():
     runner = CliRunner()
     fake_client = MagicMock()
-    fake_client.__enter__.return_value.folder.list.return_value = [
-        MagicMock(name="INBOX"),
-        MagicMock(name="Sent"),
-    ]
+    # Note: MagicMock(name=...) is reserved for the mock's repr; use explicit assignment
+    inbox = MagicMock(); inbox.name = "INBOX"
+    sent = MagicMock(); sent.name = "Sent"
+    fake_client.__enter__.return_value.folder.list.return_value = [inbox, sent]
     with patch("mailbox_cleanup.cli.get_credentials") as get_creds, \
          patch("mailbox_cleanup.cli.imap_connect", return_value=fake_client):
         get_creds.return_value = MagicMock(email="a@b.de", server="imap.ionos.de")
