@@ -1,6 +1,8 @@
 import json
 import sys
 from collections import Counter
+from dataclasses import asdict
+from dataclasses import replace as dc_replace
 
 import click
 
@@ -11,6 +13,14 @@ from .auth import (
     delete_credentials,
     get_credentials,
     set_credentials,
+)
+from .config import (
+    Config,
+    ConfigError,
+    bootstrap_from_v01_keychain,
+    config_path,
+    load_config,
+    save_config,
 )
 from .folders import resolve_folder
 from .imap_client import imap_connect
@@ -107,6 +117,173 @@ def auth_delete(email: str):
     """Remove credentials from Keychain."""
     delete_credentials(email)
     click.echo(f"Credentials removed for {email}.")
+
+
+@cli.group("config")
+def config_group():
+    """Manage multi-account configuration (~/.mailbox-cleanup/config.json)."""
+
+
+@config_group.command("init")
+@click.option(
+    "--import-email",
+    "import_email",
+    default=None,
+    help="Bootstrap a single account from a v0.1 Keychain entry for this email.",
+)
+def config_init(import_email: str | None):
+    """Create an empty config file (idempotent), or bootstrap from v0.1 Keychain."""
+    if config_path().exists():
+        click.echo(f"Config already exists at {config_path()}")
+        return
+    if import_email:
+        try:
+            cfg = bootstrap_from_v01_keychain(import_email)
+        except ConfigError as e:
+            _fail(
+                {"error_code": "bootstrap_failed", "message": str(e)},
+                4,
+                json_mode=False,
+            )
+            return
+        click.echo(
+            f"Imported v0.1 account ({import_email}) as alias "
+            f"{cfg.accounts[0].alias!r}; default set."
+        )
+        return
+    save_config(Config(default=None, accounts=()))
+    click.echo(f"Config created at {config_path()}")
+
+
+@config_group.command("list")
+@click.option("--json", "json_mode", is_flag=True)
+def config_list(json_mode: bool):
+    """List all accounts."""
+    try:
+        cfg = load_config()
+    except FileNotFoundError:
+        _fail(
+            {"error_code": "no_config", "message": f"No config at {config_path()}"},
+            5,
+            json_mode,
+        )
+        return
+    payload = {
+        "schema_version": cfg.schema_version,
+        "default": cfg.default,
+        "accounts": [asdict(a) for a in cfg.accounts],
+    }
+    if json_mode:
+        click.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        click.echo(f"Default: {cfg.default or '(none)'}")
+        for a in cfg.accounts:
+            marker = "*" if a.alias == cfg.default else " "
+            click.echo(
+                f"  {marker} {a.alias:16s} {a.email:32s} {a.server} ({a.provider})"
+            )
+
+
+@config_group.command("show")
+@click.argument("alias", required=False)
+@click.option("--json", "json_mode", is_flag=True)
+def config_show(alias: str | None, json_mode: bool):
+    """Show one account (defaults to the default account)."""
+    try:
+        cfg = load_config()
+    except FileNotFoundError:
+        _fail(
+            {"error_code": "no_config", "message": f"No config at {config_path()}"},
+            5,
+            json_mode,
+        )
+        return
+    target = alias or cfg.default
+    if target is None:
+        _fail(
+            {"error_code": "no_account_selected", "message": "No alias given and no default."},
+            4,
+            json_mode,
+        )
+        return
+    found = next((a for a in cfg.accounts if a.alias == target), None)
+    if found is None:
+        _fail(
+            {"error_code": "unknown_account", "message": f"Unknown alias {target!r}"},
+            4,
+            json_mode,
+        )
+        return
+    if json_mode:
+        click.echo(json.dumps(asdict(found), ensure_ascii=False, indent=2))
+    else:
+        for k, v in asdict(found).items():
+            click.echo(f"{k}: {v}")
+
+
+@config_group.command("set-default")
+@click.argument("alias")
+def config_set_default(alias: str):
+    """Set the default account."""
+    cfg = load_config()
+    if not any(a.alias == alias for a in cfg.accounts):
+        _fail(
+            {"error_code": "unknown_account", "message": f"No account with alias {alias!r}"},
+            4,
+            json_mode=False,
+        )
+        return
+    save_config(dc_replace(cfg, default=alias))
+    click.echo(f"Default set to {alias}.")
+
+
+@config_group.command("rename")
+@click.argument("old_alias")
+@click.argument("new_alias")
+def config_rename(old_alias: str, new_alias: str):
+    """Rename an account's alias. Updates `default` if it pointed at the old alias."""
+    cfg = load_config()
+    if not any(a.alias == old_alias for a in cfg.accounts):
+        _fail(
+            {"error_code": "unknown_account", "message": f"No alias {old_alias!r}"},
+            4,
+            json_mode=False,
+        )
+        return
+    if any(a.alias == new_alias for a in cfg.accounts):
+        _fail(
+            {"error_code": "duplicate_alias", "message": f"Alias {new_alias!r} already exists"},
+            4,
+            json_mode=False,
+        )
+        return
+    new_accounts = tuple(
+        dc_replace(a, alias=new_alias) if a.alias == old_alias else a
+        for a in cfg.accounts
+    )
+    new_default = new_alias if cfg.default == old_alias else cfg.default
+    save_config(Config(default=new_default, accounts=new_accounts))
+    click.echo(f"Renamed {old_alias} -> {new_alias}.")
+
+
+@config_group.command("remove")
+@click.argument("alias")
+def config_remove(alias: str):
+    """Remove an account from config and delete its Keychain password."""
+    cfg = load_config()
+    target = next((a for a in cfg.accounts if a.alias == alias), None)
+    if target is None:
+        _fail(
+            {"error_code": "unknown_account", "message": f"No alias {alias!r}"},
+            4,
+            json_mode=False,
+        )
+        return
+    new_accounts = tuple(a for a in cfg.accounts if a.alias != alias)
+    new_default = cfg.default if cfg.default != alias else None
+    save_config(Config(default=new_default, accounts=new_accounts))
+    delete_credentials(target.email)
+    click.echo(f"Removed account {alias} ({target.email}).")
 
 
 @cli.command("scan")
