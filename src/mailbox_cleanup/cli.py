@@ -14,6 +14,7 @@ from .auth import (
 )
 from .imap_client import imap_connect
 from .operations.archive import run_archive
+from .operations.dedupe import run_dedupe
 from .operations.delete import run_delete
 from .operations.move import run_move
 from .scan import build_report
@@ -344,3 +345,46 @@ def archive_cmd(email, folder, older_than, apply, json_mode):
         click.echo(f"{verb} {affected} messages into {res.archive_root}/<year>")
         for g in res.groups:
             click.echo(f"  {g['year']}: {g['count']} → {g['target']}")
+
+
+@cli.command("dedupe")
+@click.option("--email", required=True)
+@click.option("--folder", default="INBOX", show_default=True)
+@click.option("--apply", is_flag=True)
+@click.option("--json", "json_mode", is_flag=True)
+def dedupe_cmd(email, folder, apply, json_mode):
+    """Move duplicate-by-Message-ID copies to Trash, keep the oldest."""
+    try:
+        creds = get_credentials(email)
+    except AuthMissingError as e:
+        _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
+        return
+    try:
+        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+            res = run_dedupe(mb, folder=folder, apply=apply)
+    except Exception as e:
+        _fail({"error_code": "operation_error", "message": str(e)}, 2, json_mode)
+        return
+    payload = {
+        "ok": True,
+        "schema_version": SCHEMA_VERSION,
+        "subcommand": "dedupe",
+        "dry_run": res.dry_run,
+        "folder": res.folder,
+        "target_folder": res.target_folder,
+        "duplicate_count": len(res.duplicate_uids),
+        "groups": res.groups,
+    }
+    if apply:
+        log_action(
+            subcommand="dedupe", args={}, folder=folder,
+            affected_uids=res.duplicate_uids, result="success",
+        )
+    if json_mode:
+        click.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        verb = "Moved" if apply else "Would move"
+        click.echo(
+            f"{verb} {len(res.duplicate_uids)} duplicates "
+            f"from {len(res.groups)} groups to Trash"
+        )
