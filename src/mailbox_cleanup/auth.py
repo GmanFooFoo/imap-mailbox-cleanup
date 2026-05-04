@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 import keyring
 
 SERVICE_NAME = "mailbox-cleanup"

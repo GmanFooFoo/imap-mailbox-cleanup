@@ -1,14 +1,14 @@
 import json
 import sys
+
 import click
 
 from . import SCHEMA_VERSION
 from .auth import (
     AuthMissingError,
-    Credentials,
-    set_credentials,
-    get_credentials,
     delete_credentials,
+    get_credentials,
+    set_credentials,
 )
 from .imap_client import imap_connect
 

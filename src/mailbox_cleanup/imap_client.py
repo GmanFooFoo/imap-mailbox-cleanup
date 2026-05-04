@@ -1,6 +1,8 @@
 """IMAP client wrapper. Real implementation in Task 4."""
 from contextlib import contextmanager
+
 from imap_tools import MailBox
+
 from .auth import Credentials
 
 

@@ -1,11 +1,12 @@
 from unittest.mock import patch
+
 from mailbox_cleanup.auth import (
     SERVICE_NAME,
-    set_credentials,
-    get_credentials,
-    delete_credentials,
     AuthMissingError,
     Credentials,
+    delete_credentials,
+    get_credentials,
+    set_credentials,
 )
 
 
@@ -19,7 +20,7 @@ def test_credentials_dataclass():
 def test_set_and_get_credentials_roundtrip():
     with patch("mailbox_cleanup.auth.keyring") as kr:
         store = {}
-        kr.set_password.side_effect = lambda s, a, p: store.setdefault((s, a), p) or store.update({(s, a): p})
+        kr.set_password.side_effect = lambda s, a, p: store.__setitem__((s, a), p)
         kr.get_password.side_effect = lambda s, a: store.get((s, a))
 
         set_credentials("user@x.de", "pw123", "imap.ionos.de")
