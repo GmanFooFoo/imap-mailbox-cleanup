@@ -1,42 +1,68 @@
 ---
 name: mailbox-cleanup
-description: Discover and clean up an IONOS IMAP mailbox via the `mailbox-cleanup` CLI. Use when the user wants to triage, scan, delete, archive, or unsubscribe from messages in their mail account. Always shows dry-run preview before any destructive operation.
+description: Discover and clean up an IONOS IMAP mailbox via the `mailbox-cleanup` CLI. Use when the user wants to triage, scan, delete, archive, or unsubscribe from messages in their mail account. Always shows dry-run preview before any destructive operation. Multi-account capable.
 ---
 
 # mailbox-cleanup
 
-Conversational orchestrator over the `mailbox-cleanup` CLI. Wraps discovery → preview → apply loops with safety checks.
-
-## Account email
-
-The CLI is currently designed for a single mailbox (multi-account support is v2). Get the user's IONOS email address **on first invocation in a session**, then reuse it consistently in all CLI calls.
-
-How to get it:
-1. If the environment variable `MAILBOX_CLEANUP_EMAIL` is set, use that.
-2. Otherwise, ask the user: "Welche IONOS-Mailbox soll ich aufräumen? (z.B. `name@example.com`)"
-3. Once you have it, store it in your working memory for the session and substitute it into every `--email` flag below.
-
-In the rest of this document, `<EMAIL>` is the placeholder — replace it with the user's actual email when constructing CLI calls.
+Conversational orchestrator over the `mailbox-cleanup` CLI. Wraps discovery → preview → apply loops with safety checks. Multi-account capable: every CLI call resolves to one account via `--account=<alias|email>` or the configured default.
 
 ## Required CLI version
 
 Schema version 1. The CLI emits `"schema_version": 1` in every JSON response — if it doesn't match, abort and tell the user to update the CLI.
 
-## Setup check (run first, every session)
+## Setup state — detect first, every session
 
-Before any operation, verify the CLI is reachable and authenticated:
+Before anything else, find out which accounts are configured:
 
 ```bash
-mailbox-cleanup auth test --email <EMAIL> --json
+mailbox-cleanup config list --json
+```
+
+Read the `accounts` array from the response. Three states:
+
+1. **Empty / file missing** — no accounts yet. Run the setup-time decision tree below.
+2. **One account** — use it implicitly. No `--account` flag needed.
+3. **Multiple accounts** — pick one (see "Picking an account" below) and pass `--account=<alias>` to every subsequent CLI call.
+
+### Setup-time decision tree
+
+```
+if config.json missing AND user has v0.1 keychain entry:
+  run any subcommand with --email=<their email> → triggers auto-bootstrap
+  OR run `config init --import-email=<email>` explicitly
+if config.json missing AND no v0.1 entry:
+  ask user for alias + email, then guide them to run in a real terminal:
+    mailbox-cleanup auth set --alias=<alias> --email=<email>
+  (auth set needs a TTY for getpass — Claude Code cannot run it interactively)
+if config.json exists:
+  use accounts as listed; ask user which one if ambiguous
+```
+
+## Picking an account
+
+Once `config list --json` returns a non-empty `accounts` array:
+
+1. **One account** — use it. Don't ask. Don't pass `--account` (the CLI resolves the single account automatically).
+2. **Multiple accounts, default set** — assume the default unless the user says otherwise. You may briefly note it: "Ich nutze den Default-Account `<alias>`. Anderer Account?"
+3. **Multiple accounts, no default** — ask: "Welcher Account: `work`, `private`, ...?" Then pass `--account=<chosen>` to every subsequent command in the session.
+
+Store the chosen alias in your working memory for the session. Substitute `<ACCOUNT>` in the commands below with the chosen alias (or omit `--account=<ACCOUNT>` entirely when there is exactly one configured account).
+
+## Auth check (run after picking the account)
+
+```bash
+mailbox-cleanup auth test --account=<ACCOUNT> --json
 ```
 
 - Exit 0 with `"ok": true`: continue.
-- Exit 3 (`auth_missing`): tell the user to run `mailbox-cleanup auth set --email <EMAIL> --server imap.ionos.de` in their terminal (Terminal.app / iTerm — `getpass` requires a TTY). Do not proceed.
+- Exit 3 (`auth_missing`): tell the user to run `mailbox-cleanup auth set --alias=<ACCOUNT> --email=<their email>` in a real terminal (Terminal.app / iTerm — `getpass` requires a TTY). Do not proceed.
+- Exit 4 (`no_account_selected` / `unknown_account`): re-check the account list; you may have a stale alias.
 - Exit 2 (connection): show the message; do not retry blindly.
 
 ## Standard flow
 
-1. Run `mailbox-cleanup scan --email <EMAIL> --json`.
+1. Run `mailbox-cleanup scan --account=<ACCOUNT> --json`.
 2. Validate `schema_version == 1`. Otherwise abort.
 3. Render a German Markdown summary:
 
@@ -68,18 +94,19 @@ mailbox-cleanup auth test --email <EMAIL> --json
 
 ## Subcommand cheat sheet
 
-Replace `<EMAIL>` with the user's email when issuing each command.
+Replace `<ACCOUNT>` with the chosen alias (or omit the `--account` flag when only one account is configured).
 
 | User intent | Command |
 |-------------|---------|
-| "Scan" / "Was ist drin?" | `mailbox-cleanup scan --email <EMAIL> --json` |
-| "Wer schickt am meisten?" | `mailbox-cleanup senders --email <EMAIL> --top 20 --json` |
-| "Lösch alles von X" | `mailbox-cleanup delete --email <EMAIL> --sender X --json` (then `--apply`) |
-| "Alles älter als 1 Jahr archivieren" | `mailbox-cleanup archive --email <EMAIL> --older-than 12m --json` |
-| "Vom Newsletter X abmelden" | `mailbox-cleanup unsubscribe --email <EMAIL> --sender X --json` |
-| "Bounces wegräumen" | `mailbox-cleanup bounces --email <EMAIL> --json` |
-| "Duplikate finden" | `mailbox-cleanup dedupe --email <EMAIL> --json` |
-| "Große Anhänge zeigen" | `mailbox-cleanup attachments --email <EMAIL> --size-gt 10mb --json` |
+| "Welche Accounts?" | `mailbox-cleanup config list --json` |
+| "Scan" / "Was ist drin?" | `mailbox-cleanup scan --account=<ACCOUNT> --json` |
+| "Wer schickt am meisten?" | `mailbox-cleanup senders --account=<ACCOUNT> --top 20 --json` |
+| "Lösch alles von X" | `mailbox-cleanup delete --account=<ACCOUNT> --sender X --json` (then `--apply`) |
+| "Alles älter als 1 Jahr archivieren" | `mailbox-cleanup archive --account=<ACCOUNT> --older-than 12m --json` |
+| "Vom Newsletter X abmelden" | `mailbox-cleanup unsubscribe --account=<ACCOUNT> --sender X --json` |
+| "Bounces wegräumen" | `mailbox-cleanup bounces --account=<ACCOUNT> --json` |
+| "Duplikate finden" | `mailbox-cleanup dedupe --account=<ACCOUNT> --json` |
+| "Große Anhänge zeigen" | `mailbox-cleanup attachments --account=<ACCOUNT> --size-gt 10mb --json` |
 
 ## Exit codes
 
@@ -87,9 +114,13 @@ Replace `<EMAIL>` with the user's email when issuing each command.
 |------|---------|------------|
 | 0 | Success | Continue |
 | 2 | Connection error | Show stderr, do not retry blindly |
-| 3 | Auth missing | Tell user to run `auth set` |
-| 4 | Bad arguments | Show stderr; you used the CLI wrong, fix the call |
-| 5 | Partial failure | Show audit log path, summarize successes/failures |
+| 3 | Auth missing | Tell user to run `auth set` in a real terminal |
+| 4 | Bad arguments / account resolution (`no_account_selected`, `unknown_account`, `duplicate_alias`, `duplicate_email`, `bootstrap_failed`) | Show stderr; re-check `config list --json` if needed |
+| 5 | Partial failure / config error (`no_config`, `config_corrupt`, `schema_version_unsupported`) | Show audit log path, summarize successes/failures |
+
+## Audit log
+
+Path: `~/.mailbox-cleanup/audit.log`. Append-only JSONL, one record per `--apply` action. Each record now includes an `account` field identifying which alias performed the action. Treat `account` as **optional** for backward compatibility — v0.1 entries pre-date the multi-account schema and may not have it.
 
 ## Hard rules
 
@@ -97,3 +128,4 @@ Replace `<EMAIL>` with the user's email when issuing each command.
 2. **Never invent UID lists or counts.** Always use the JSON returned by the CLI.
 3. **Never edit the audit log.** It is append-only forensics.
 4. **All destructive operations move to Trash.** v1 has no hard-delete; if the user asks "wirklich löschen", explain that v1 only soft-deletes and Trash is purged by IONOS retention.
+5. **Never mix accounts in a single dry-run/apply pair.** If the user switches account mid-session, re-run the preview against the new account before any `--apply`.
