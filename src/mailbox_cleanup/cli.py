@@ -16,6 +16,7 @@ from .folders import resolve_folder
 from .imap_client import imap_connect
 from .operations.archive import run_archive
 from .operations.attachments import run_attachments
+from .operations.bounces import run_bounces
 from .operations.dedupe import run_dedupe
 from .operations.delete import run_delete
 from .operations.move import run_move
@@ -500,3 +501,44 @@ def unsubscribe_cmd(email, folder, sender, apply, json_mode):
             f"{verb} unsubscribe for {sender}: "
             f"{len(actions)} action(s) found, {len(uids)} matching messages"
         )
+
+
+@cli.command("bounces")
+@click.option("--email", required=True)
+@click.option("--folder", default="INBOX", show_default=True)
+@click.option("--apply", is_flag=True)
+@click.option("--json", "json_mode", is_flag=True)
+def bounces_cmd(email, folder, apply, json_mode):
+    """Find bounce/auto-reply messages, optionally move to Trash."""
+    try:
+        creds = get_credentials(email)
+    except AuthMissingError as e:
+        _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
+        return
+    try:
+        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+            res = run_bounces(mb, folder=folder, apply=apply)
+    except Exception as e:
+        _fail({"error_code": "operation_error", "message": str(e)}, 2, json_mode)
+        return
+    payload = {
+        "ok": True,
+        "schema_version": SCHEMA_VERSION,
+        "subcommand": "bounces",
+        "dry_run": res.dry_run,
+        "folder": res.folder,
+        "target_folder": res.target_folder,
+        "affected_count": len(res.affected_uids),
+        "affected_uids": res.affected_uids,
+        "sample": res.sample,
+    }
+    if apply:
+        log_action(
+            subcommand="bounces", args={}, folder=folder,
+            affected_uids=res.affected_uids, result="success",
+        )
+    if json_mode:
+        click.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        verb = "Moved" if apply else "Would move"
+        click.echo(f"{verb} {len(res.affected_uids)} bounce/auto-reply messages to Trash")
