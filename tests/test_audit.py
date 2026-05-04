@@ -15,6 +15,7 @@ def tmp_audit(tmp_path, monkeypatch):
 def test_log_action_appends_jsonl(tmp_audit):
     log_action(
         subcommand="delete",
+        account="work",
         args={"sender": "x@y.com", "older_than": "6m"},
         folder="INBOX",
         affected_uids=["1", "2", "3"],
@@ -22,6 +23,7 @@ def test_log_action_appends_jsonl(tmp_audit):
     )
     log_action(
         subcommand="archive",
+        account="private",
         args={"older_than": "12m"},
         folder="INBOX",
         affected_uids=["4"],
@@ -31,17 +33,20 @@ def test_log_action_appends_jsonl(tmp_audit):
     assert len(lines) == 2
     rec1 = json.loads(lines[0])
     assert rec1["subcommand"] == "delete"
+    assert rec1["account"] == "work"
     assert rec1["folder"] == "INBOX"
     assert rec1["affected_uids"] == ["1", "2", "3"]
     assert rec1["result"] == "success"
     assert "timestamp" in rec1
     rec2 = json.loads(lines[1])
     assert rec2["subcommand"] == "archive"
+    assert rec2["account"] == "private"
 
 
 def test_log_action_records_failure(tmp_audit):
     log_action(
         subcommand="delete",
+        account="work",
         args={"sender": "x@y.com"},
         folder="INBOX",
         affected_uids=[],
@@ -51,10 +56,33 @@ def test_log_action_records_failure(tmp_audit):
     rec = json.loads(tmp_audit.read_text().strip())
     assert rec["result"] == "failure"
     assert rec["error"] == "connection lost"
+    assert rec["account"] == "work"
 
 
 def test_log_action_creates_parent_dir(tmp_path, monkeypatch):
     nested = tmp_path / "a" / "b" / "audit.log"
     monkeypatch.setenv(AUDIT_LOG_PATH_ENV, str(nested))
-    log_action(subcommand="x", args={}, folder="INBOX", affected_uids=[], result="success")
+    log_action(
+        subcommand="x",
+        account="any",
+        args={},
+        folder="INBOX",
+        affected_uids=[],
+        result="success",
+    )
     assert nested.exists()
+
+
+def test_log_action_account_field_position(tmp_audit):
+    """`account` field must be present in the JSON record (next to subcommand)."""
+    log_action(
+        subcommand="bounces",
+        account="work",
+        args={},
+        folder="INBOX",
+        affected_uids=["1"],
+        result="success",
+    )
+    rec = json.loads(tmp_audit.read_text().strip())
+    assert rec["account"] == "work"
+    assert rec["subcommand"] == "bounces"

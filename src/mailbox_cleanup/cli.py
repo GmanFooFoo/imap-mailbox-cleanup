@@ -523,6 +523,7 @@ def delete_cmd(
     if apply:
         log_action(
             subcommand="delete",
+            account=account.alias,
             args={
                 "sender": sender,
                 "subject_contains": subject_contains,
@@ -604,6 +605,7 @@ def move_cmd(
     if apply:
         log_action(
             subcommand="move",
+            account=account.alias,
             args={
                 "to": target,
                 "sender": sender,
@@ -661,6 +663,7 @@ def archive_cmd(account_flag, email_flag, folder, older_than, apply, json_mode):
     if apply:
         log_action(
             subcommand="archive",
+            account=account.alias,
             args={"older_than": older_than},
             folder=folder,
             affected_uids=[uid for g in res.groups for uid in g["uids"]],
@@ -712,6 +715,7 @@ def dedupe_cmd(account_flag, email_flag, folder, apply, json_mode):
     if apply:
         log_action(
             subcommand="dedupe",
+            account=account.alias,
             args={},
             folder=folder,
             affected_uids=res.duplicate_uids,
@@ -828,6 +832,7 @@ def unsubscribe_cmd(account_flag, email_flag, folder, sender, apply, json_mode):
     if apply:
         log_action(
             subcommand="unsubscribe",
+            account=account.alias,
             args={"sender": sender},
             folder=folder,
             affected_uids=uids,
@@ -881,6 +886,7 @@ def bounces_cmd(account_flag, email_flag, folder, apply, json_mode):
     if apply:
         log_action(
             subcommand="bounces",
+            account=account.alias,
             args={},
             folder=folder,
             affected_uids=res.affected_uids,

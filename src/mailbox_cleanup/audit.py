@@ -18,16 +18,21 @@ def _audit_path() -> Path:
 def log_action(
     *,
     subcommand: str,
+    account: str,
     args: Mapping[str, object],
     folder: str,
     affected_uids: Sequence[str],
     result: str,
     error: str | None = None,
 ) -> None:
-    """Append one JSON-line record describing an applied action."""
+    """Append one JSON-line record describing an applied action.
+
+    `account` is the alias of the account the action was performed against.
+    """
     record: dict[str, object] = {
         "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "subcommand": subcommand,
+        "account": account,
         "args": dict(args),
         "folder": folder,
         "affected_uids": list(affected_uids),
