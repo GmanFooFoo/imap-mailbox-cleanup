@@ -1,5 +1,9 @@
 # mailbox-cleanup
 
+<p align="center">
+  <img src=".github/social-preview.jpg" alt="mailbox-cleanup — Mailbox Triage. Dry-run first." width="100%"/>
+</p>
+
 Hybrid CLI + Claude Code Skill for triaging and cleaning up an IONOS IMAP mailbox. Dry-run by default, audit-logged, soft-delete-only. Multi-account capable.
 
 [![CI](https://github.com/GmanFooFoo/imap-mailbox-cleanup/actions/workflows/ci.yml/badge.svg)](https://github.com/GmanFooFoo/imap-mailbox-cleanup/actions/workflows/ci.yml)
