@@ -187,3 +187,62 @@ def load_config() -> Config:
     except json.JSONDecodeError as e:
         raise ConfigError(f"Could not parse config at {path}: {e}") from e
     return validate_config(data)
+
+
+class AccountResolutionError(Exception):
+    """Raised when no account can be resolved.
+
+    `error_code` is one of: 'no_account_selected', 'unknown_account'.
+    """
+
+    def __init__(self, error_code: str, message: str):
+        super().__init__(message)
+        self.error_code = error_code
+
+
+def _find_account(cfg: Config, identifier: str) -> Account | None:
+    for a in cfg.accounts:
+        if a.alias == identifier or a.email == identifier:
+            return a
+    return None
+
+
+def resolve_account(cfg: Config, *, flag: str | None, env: str | None) -> Account:
+    """Resolve which Account to operate on.
+
+    Precedence (highest first): flag, env, cfg.default, single-account, hard-fail.
+    Empty strings in flag/env are treated as None.
+    """
+    if flag:
+        a = _find_account(cfg, flag)
+        if a is None:
+            raise AccountResolutionError(
+                "unknown_account",
+                f"unknown_account: {flag!r}; known: "
+                f"{[x.alias for x in cfg.accounts]}",
+            )
+        return a
+    if env:
+        a = _find_account(cfg, env)
+        if a is None:
+            raise AccountResolutionError(
+                "unknown_account",
+                f"unknown_account in MAILBOX_CLEANUP_ACCOUNT={env!r}",
+            )
+        return a
+    if cfg.default:
+        a = _find_account(cfg, cfg.default)
+        if a is not None:
+            return a
+        raise AccountResolutionError(
+            "unknown_account",
+            f"unknown_account: default {cfg.default!r} is not an existing alias",
+        )
+    if len(cfg.accounts) == 1:
+        return cfg.accounts[0]
+    raise AccountResolutionError(
+        "no_account_selected",
+        "no_account_selected: multiple accounts configured. "
+        "Specify --account=<alias>, set MAILBOX_CLEANUP_ACCOUNT=, or run "
+        "'mailbox-cleanup config set-default <alias>'.",
+    )

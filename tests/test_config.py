@@ -5,12 +5,14 @@ import pytest
 from mailbox_cleanup.config import (
     DEFAULT_CONFIG_PATH_ENV,
     Account,
+    AccountResolutionError,
     Config,
     ConfigError,
     config_path,
     derive_alias_from_email,
     derive_provider,
     load_config,
+    resolve_account,
     save_config,
     validate_config,
 )
@@ -327,3 +329,95 @@ def test_save_config_serialises_all_account_fields(tmp_path, monkeypatch):
     assert data["default"] == "work"
     assert data["accounts"][0]["port"] == 12345
     assert data["accounts"][0]["provider"] == "custom"
+
+
+def _cfg(*aliases, default=None):
+    accounts = tuple(
+        Account(alias=a, email=f"{a}@x.de", server="imap.ionos.de")
+        for a in aliases
+    )
+    return Config(default=default, accounts=accounts)
+
+
+def test_resolve_by_flag_alias():
+    cfg = _cfg("work", "private", default="work")
+    assert resolve_account(cfg, flag="private", env=None).alias == "private"
+
+
+def test_resolve_by_flag_email():
+    cfg = _cfg("work", "private", default="work")
+    assert resolve_account(cfg, flag="private@x.de", env=None).alias == "private"
+
+
+def test_resolve_by_env_when_no_flag():
+    cfg = _cfg("work", "private", default="work")
+    assert resolve_account(cfg, flag=None, env="private").alias == "private"
+
+
+def test_resolve_flag_beats_env():
+    cfg = _cfg("work", "private", default="work")
+    assert resolve_account(cfg, flag="work", env="private").alias == "work"
+
+
+def test_resolve_falls_back_to_default():
+    cfg = _cfg("work", "private", default="work")
+    assert resolve_account(cfg, flag=None, env=None).alias == "work"
+
+
+def test_resolve_falls_back_to_single_account():
+    cfg = _cfg("only", default=None)
+    assert resolve_account(cfg, flag=None, env=None).alias == "only"
+
+
+def test_resolve_no_accounts_raises():
+    cfg = _cfg(default=None)
+    with pytest.raises(AccountResolutionError, match="no_account_selected"):
+        resolve_account(cfg, flag=None, env=None)
+
+
+def test_resolve_multiple_no_default_no_flag_raises():
+    cfg = _cfg("a", "b", default=None)
+    with pytest.raises(AccountResolutionError, match="no_account_selected"):
+        resolve_account(cfg, flag=None, env=None)
+
+
+def test_resolve_unknown_account_raises():
+    cfg = _cfg("work", default="work")
+    with pytest.raises(AccountResolutionError, match="unknown_account"):
+        resolve_account(cfg, flag="nope", env=None)
+
+
+def test_resolve_unknown_env_raises():
+    """env-var lookup also raises unknown_account when no match."""
+    cfg = _cfg("work", default="work")
+    with pytest.raises(AccountResolutionError, match="unknown_account"):
+        resolve_account(cfg, flag=None, env="nope")
+
+
+def test_resolve_inconsistent_default_raises():
+    """Edge case: cfg.default points at a non-existent alias (would normally fail
+    validate_config; but if reached, resolver must also fail with unknown_account)."""
+    # Construct directly to bypass validate_config
+    cfg = Config(
+        default="ghost",
+        accounts=(Account(alias="real", email="r@x.de", server="imap.ionos.de"),),
+    )
+    with pytest.raises(AccountResolutionError, match="unknown_account"):
+        resolve_account(cfg, flag=None, env=None)
+
+
+def test_resolve_empty_string_flag_treated_as_none():
+    cfg = _cfg("only", default="only")
+    assert resolve_account(cfg, flag="", env=None).alias == "only"
+
+
+def test_resolve_empty_string_env_treated_as_none():
+    cfg = _cfg("only", default="only")
+    assert resolve_account(cfg, flag=None, env="").alias == "only"
+
+
+def test_resolution_error_carries_error_code():
+    cfg = _cfg("a", "b", default=None)
+    with pytest.raises(AccountResolutionError) as exc_info:
+        resolve_account(cfg, flag=None, env=None)
+    assert exc_info.value.error_code == "no_account_selected"
