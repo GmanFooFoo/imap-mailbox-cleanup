@@ -114,9 +114,7 @@ def auth_set(alias, email, server, port, provider, make_default, password):
         new_default = final_alias
     set_credentials(email, password, server)
     save_config(Config(default=new_default, accounts=new_accounts))
-    click.echo(
-        f"Stored credentials for {email} (alias: {final_alias}, server: {server})."
-    )
+    click.echo(f"Stored credentials for {email} (alias: {final_alias}, server: {server}).")
 
 
 @auth.command("test")
@@ -259,9 +257,7 @@ def config_list(json_mode: bool):
         click.echo(f"Default: {cfg.default or '(none)'}")
         for a in cfg.accounts:
             marker = "*" if a.alias == cfg.default else " "
-            click.echo(
-                f"  {marker} {a.alias:16s} {a.email:32s} {a.server} ({a.provider})"
-            )
+            click.echo(f"  {marker} {a.alias:16s} {a.email:32s} {a.server} ({a.provider})")
 
 
 @config_group.command("show")
@@ -338,8 +334,7 @@ def config_rename(old_alias: str, new_alias: str):
         )
         return
     new_accounts = tuple(
-        dc_replace(a, alias=new_alias) if a.alias == old_alias else a
-        for a in cfg.accounts
+        dc_replace(a, alias=new_alias) if a.alias == old_alias else a for a in cfg.accounts
     )
     new_default = new_alias if cfg.default == old_alias else cfg.default
     save_config(Config(default=new_default, accounts=new_accounts))

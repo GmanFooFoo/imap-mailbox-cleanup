@@ -70,8 +70,7 @@ def resolve_account_and_credentials(
     # --email deprecation: treat as --account if --account not given
     if email_flag and not account_flag:
         warnings.warn(
-            "--email is deprecated; use --account=<alias-or-email>. "
-            "Removed in v0.3.",
+            "--email is deprecated; use --account=<alias-or-email>. Removed in v0.3.",
             DeprecationWarning,
             stacklevel=2,
         )

@@ -81,9 +81,7 @@ class Config:
 def _validate_account_dict(d: dict) -> Account:
     for required in ("alias", "email", "server"):
         if required not in d:
-            raise ConfigError(
-                f"Account missing required field {required!r}: {d!r}"
-            )
+            raise ConfigError(f"Account missing required field {required!r}: {d!r}")
     alias = d["alias"]
     if not isinstance(alias, str) or not _ALIAS_RE.match(alias):
         raise ConfigError(
@@ -105,14 +103,10 @@ def _validate_account_dict(d: dict) -> Account:
 def validate_config(data: dict) -> Config:
     """Parse and validate a raw config dict. Raises ConfigError on any problem."""
     if not isinstance(data, dict):
-        raise ConfigError(
-            f"Config root must be an object, got {type(data).__name__}"
-        )
+        raise ConfigError(f"Config root must be an object, got {type(data).__name__}")
     sv = data.get("schema_version")
     if sv != SCHEMA_VERSION:
-        raise ConfigError(
-            f"Unsupported schema_version: {sv!r} (this CLI knows {SCHEMA_VERSION})"
-        )
+        raise ConfigError(f"Unsupported schema_version: {sv!r} (this CLI knows {SCHEMA_VERSION})")
     accounts_raw = data.get("accounts", [])
     if not isinstance(accounts_raw, list):
         raise ConfigError("'accounts' must be a list")
@@ -130,10 +124,7 @@ def validate_config(data: dict) -> Config:
 
     default = data.get("default")
     if default is not None and default not in seen_aliases:
-        raise ConfigError(
-            f"default {default!r} is not an existing alias: "
-            f"{sorted(seen_aliases)}"
-        )
+        raise ConfigError(f"default {default!r} is not an existing alias: {sorted(seen_aliases)}")
 
     return Config(default=default, accounts=accounts, schema_version=SCHEMA_VERSION)
 
@@ -264,9 +255,7 @@ def bootstrap_from_v01_keychain(email: str) -> Config:
     Raises ConfigError if no v0.1 password is in Keychain for the email.
     """
     if keyring.get_password(V01_SERVICE_NAME, email) is None:
-        raise ConfigError(
-            f"Bootstrap failed: no v0.1 credentials in Keychain for {email!r}"
-        )
+        raise ConfigError(f"Bootstrap failed: no v0.1 credentials in Keychain for {email!r}")
     server = (
         keyring.get_password(V01_SERVICE_NAME, f"{V01_SERVER_KEY_PREFIX}{email}")
         or V01_DEFAULT_SERVER

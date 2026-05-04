@@ -29,10 +29,14 @@ def test_auth_set_with_alias_creates_account(cfg_env):
         r = runner.invoke(
             cli,
             [
-                "auth", "set",
-                "--alias", "work",
-                "--email", "a@b.de",
-                "--server", "imap.ionos.de",
+                "auth",
+                "set",
+                "--alias",
+                "work",
+                "--email",
+                "a@b.de",
+                "--server",
+                "imap.ionos.de",
                 "--make-default",
             ],
             input="secret\n",
@@ -47,10 +51,12 @@ def test_auth_set_with_alias_creates_account(cfg_env):
 
 
 def test_auth_set_duplicate_alias_fails(cfg_env):
-    save_config(Config(
-        default="work",
-        accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
-    ))
+    save_config(
+        Config(
+            default="work",
+            accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
+        )
+    )
     runner = CliRunner()
     with patch("mailbox_cleanup.cli.set_credentials"):
         r = runner.invoke(
@@ -63,10 +69,12 @@ def test_auth_set_duplicate_alias_fails(cfg_env):
 
 
 def test_auth_set_duplicate_email_fails(cfg_env):
-    save_config(Config(
-        default="work",
-        accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
-    ))
+    save_config(
+        Config(
+            default="work",
+            accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
+        )
+    )
     runner = CliRunner()
     with patch("mailbox_cleanup.cli.set_credentials"):
         r = runner.invoke(
@@ -109,10 +117,12 @@ def test_auth_set_first_account_is_auto_default(cfg_env):
 
 
 def test_auth_set_subsequent_account_does_not_steal_default(cfg_env):
-    save_config(Config(
-        default="work",
-        accounts=(Account(alias="work", email="w@x.de", server="imap.ionos.de"),),
-    ))
+    save_config(
+        Config(
+            default="work",
+            accounts=(Account(alias="work", email="w@x.de", server="imap.ionos.de"),),
+        )
+    )
     runner = CliRunner()
     with patch("mailbox_cleanup.cli.set_credentials"):
         runner.invoke(
@@ -125,10 +135,12 @@ def test_auth_set_subsequent_account_does_not_steal_default(cfg_env):
 
 
 def test_auth_test_by_account_alias(cfg_env):
-    save_config(Config(
-        default="work",
-        accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
-    ))
+    save_config(
+        Config(
+            default="work",
+            accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
+        )
+    )
     runner = CliRunner()
     fake_mb = MagicMock()
     fake_mb.__enter__.return_value.folder.list.return_value = []
@@ -143,10 +155,12 @@ def test_auth_test_by_account_alias(cfg_env):
 
 
 def test_auth_test_email_flag_deprecated_still_works(cfg_env):
-    save_config(Config(
-        default="work",
-        accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
-    ))
+    save_config(
+        Config(
+            default="work",
+            accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
+        )
+    )
     runner = CliRunner()
     fake_mb = MagicMock()
     fake_mb.__enter__.return_value.folder.list.return_value = []
@@ -161,13 +175,15 @@ def test_auth_test_email_flag_deprecated_still_works(cfg_env):
 
 
 def test_auth_delete_by_account_removes_both(cfg_env):
-    save_config(Config(
-        default="work",
-        accounts=(
-            Account(alias="work", email="a@b.de", server="imap.ionos.de"),
-            Account(alias="private", email="c@d.de", server="imap.ionos.de"),
-        ),
-    ))
+    save_config(
+        Config(
+            default="work",
+            accounts=(
+                Account(alias="work", email="a@b.de", server="imap.ionos.de"),
+                Account(alias="private", email="c@d.de", server="imap.ionos.de"),
+            ),
+        )
+    )
     runner = CliRunner()
     with (
         patch("mailbox_cleanup.auth.keyring.get_password", return_value="pw"),
@@ -182,10 +198,12 @@ def test_auth_delete_by_account_removes_both(cfg_env):
 
 
 def test_auth_delete_unknown_fails(cfg_env):
-    save_config(Config(
-        default="work",
-        accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
-    ))
+    save_config(
+        Config(
+            default="work",
+            accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
+        )
+    )
     runner = CliRunner()
     with patch("mailbox_cleanup.auth.keyring.get_password", return_value="pw"):
         r = runner.invoke(cli, ["auth", "delete", "--account", "ghost"])

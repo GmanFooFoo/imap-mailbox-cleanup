@@ -118,9 +118,7 @@ def test_validate_config_happy_path():
     data = {
         "schema_version": 1,
         "default": "work",
-        "accounts": [
-            {"alias": "work", "email": "a@b.de", "server": "imap.ionos.de"}
-        ],
+        "accounts": [{"alias": "work", "email": "a@b.de", "server": "imap.ionos.de"}],
     }
     cfg = validate_config(data)
     assert isinstance(cfg, Config)
@@ -176,9 +174,7 @@ def test_validate_config_bad_alias_regex_raises():
     data = {
         "schema_version": 1,
         "default": "Bad-Alias",
-        "accounts": [
-            {"alias": "Bad-Alias", "email": "a@b.de", "server": "x"}
-        ],
+        "accounts": [{"alias": "Bad-Alias", "email": "a@b.de", "server": "x"}],
     }
     with pytest.raises(ConfigError, match="alias"):
         validate_config(data)
@@ -189,9 +185,7 @@ def test_validate_config_alias_too_long_raises():
     data = {
         "schema_version": 1,
         "default": long_alias,
-        "accounts": [
-            {"alias": long_alias, "email": "a@b.de", "server": "x"}
-        ],
+        "accounts": [{"alias": long_alias, "email": "a@b.de", "server": "x"}],
     }
     with pytest.raises(ConfigError, match="alias"):
         validate_config(data)
@@ -202,9 +196,7 @@ def test_validate_config_alias_max_length_ok():
     data = {
         "schema_version": 1,
         "default": max_alias,
-        "accounts": [
-            {"alias": max_alias, "email": "a@b.de", "server": "x"}
-        ],
+        "accounts": [{"alias": max_alias, "email": "a@b.de", "server": "x"}],
     }
     cfg = validate_config(data)
     assert cfg.accounts[0].alias == max_alias
@@ -258,9 +250,7 @@ def test_save_and_load_roundtrip(tmp_path, monkeypatch):
     monkeypatch.setenv(DEFAULT_CONFIG_PATH_ENV, str(p))
     cfg = Config(
         default="work",
-        accounts=(
-            Account(alias="work", email="a@b.de", server="imap.ionos.de"),
-        ),
+        accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
     )
     save_config(cfg)
     assert p.exists()
@@ -334,10 +324,7 @@ def test_save_config_serialises_all_account_fields(tmp_path, monkeypatch):
 
 
 def _cfg(*aliases, default=None):
-    accounts = tuple(
-        Account(alias=a, email=f"{a}@x.de", server="imap.ionos.de")
-        for a in aliases
-    )
+    accounts = tuple(Account(alias=a, email=f"{a}@x.de", server="imap.ionos.de") for a in aliases)
     return Config(default=default, accounts=accounts)
 
 

@@ -1,4 +1,5 @@
 """Verify all data subcommands accept --account and respect the resolver."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest

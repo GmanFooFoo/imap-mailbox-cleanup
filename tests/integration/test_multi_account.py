@@ -1,4 +1,5 @@
 """End-to-end test: two Greenmail accounts, switch via --account and env var."""
+
 from unittest.mock import patch
 
 import pytest
@@ -25,13 +26,15 @@ def two_account_setup(tmp_path, monkeypatch, greenmail):
 
     host = greenmail["host"]
     port = greenmail["port"]
-    save_config(Config(
-        default="work",
-        accounts=(
-            Account(alias="work", email="work@localhost", server=host, port=port),
-            Account(alias="private", email="private@localhost", server=host, port=port),
-        ),
-    ))
+    save_config(
+        Config(
+            default="work",
+            accounts=(
+                Account(alias="work", email="work@localhost", server=host, port=port),
+                Account(alias="private", email="private@localhost", server=host, port=port),
+            ),
+        )
+    )
 
     # Greenmail's IMAP LOGIN expects the bare userid (the part before '@'),
     # not the full email. Patch get_credentials so the IMAP login uses the
@@ -76,6 +79,7 @@ def test_auth_test_returns_correct_account(two_account_setup):
     r = runner.invoke(cli, ["auth", "test", "--account", "private", "--json"])
     assert r.exit_code == 0, r.output
     import json
+
     data = json.loads(r.output)
     assert data["account"] == "private"
     assert data["email"] == "private@localhost"

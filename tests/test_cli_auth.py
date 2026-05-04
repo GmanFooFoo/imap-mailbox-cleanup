@@ -41,10 +41,12 @@ def test_auth_set_writes_to_keychain_and_config(cfg_env):
 
 
 def test_auth_test_success_json(cfg_env):
-    save_config(Config(
-        default="work",
-        accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
-    ))
+    save_config(
+        Config(
+            default="work",
+            accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
+        )
+    )
     runner = CliRunner()
     fake_client = MagicMock()
     inbox = MagicMock()
@@ -66,10 +68,12 @@ def test_auth_test_success_json(cfg_env):
 
 
 def test_auth_test_missing_credentials_exit_3(cfg_env):
-    save_config(Config(
-        default="work",
-        accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
-    ))
+    save_config(
+        Config(
+            default="work",
+            accounts=(Account(alias="work", email="a@b.de", server="imap.ionos.de"),),
+        )
+    )
     runner = CliRunner()
     with patch("mailbox_cleanup.auth.keyring.get_password", return_value=None):
         result = runner.invoke(cli, ["auth", "test", "--account", "work", "--json"])
