@@ -14,6 +14,7 @@ from .auth import (
 )
 from .imap_client import imap_connect
 from .operations.delete import run_delete
+from .operations.move import run_move
 from .scan import build_report
 
 _DEFAULT_PORT = 993
@@ -240,3 +241,58 @@ def delete_cmd(email, folder, sender, subject_contains, older_than, limit, apply
     else:
         verb = "Moved" if apply else "Would move"
         click.echo(f"{verb} {len(res.affected_uids)} messages to {res.target_folder!r}")
+
+
+@cli.command("move")
+@click.option("--email", required=True)
+@click.option("--folder", default="INBOX", show_default=True)
+@click.option("--to", "target", required=True, help="Destination folder.")
+@click.option("--sender", default=None)
+@click.option("--subject-contains", default=None)
+@click.option("--older-than", default=None)
+@click.option("--limit", default=None, type=int)
+@click.option("--apply", is_flag=True)
+@click.option("--json", "json_mode", is_flag=True)
+def move_cmd(email, folder, target, sender, subject_contains, older_than, limit, apply, json_mode):
+    """Move messages matching filter to target folder."""
+    _require_filter(sender, subject_contains, older_than, json_mode)
+    try:
+        creds = get_credentials(email)
+    except AuthMissingError as e:
+        _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
+        return
+    try:
+        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+            res = run_move(
+                mb, folder=folder, target=target,
+                sender=sender, subject_contains=subject_contains,
+                older_than=older_than, apply=apply, limit=limit,
+            )
+    except Exception as e:
+        _fail({"error_code": "operation_error", "message": str(e)}, 2, json_mode)
+        return
+    payload = {
+        "ok": True,
+        "schema_version": SCHEMA_VERSION,
+        "subcommand": "move",
+        "dry_run": res.dry_run,
+        "folder": res.folder,
+        "target_folder": res.target_folder,
+        "affected_count": len(res.affected_uids),
+        "affected_uids": res.affected_uids,
+        "sample": res.sample,
+    }
+    if apply:
+        log_action(
+            subcommand="move",
+            args={"to": target, "sender": sender, "subject_contains": subject_contains,
+                  "older_than": older_than, "limit": limit},
+            folder=folder,
+            affected_uids=res.affected_uids,
+            result="success",
+        )
+    if json_mode:
+        click.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        verb = "Moved" if apply else "Would move"
+        click.echo(f"{verb} {len(res.affected_uids)} messages to {target!r}")
