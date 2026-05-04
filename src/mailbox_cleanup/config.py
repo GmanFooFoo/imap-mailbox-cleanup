@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 
@@ -70,7 +69,7 @@ class Account:
 @dataclass(frozen=True)
 class Config:
     default: str | None
-    accounts: Sequence[Account] = field(default_factory=tuple)
+    accounts: tuple[Account, ...] = field(default_factory=tuple)
     schema_version: int = SCHEMA_VERSION
 
 
