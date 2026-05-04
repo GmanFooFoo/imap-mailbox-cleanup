@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sys
 import warnings
+from dataclasses import replace as dc_replace
 
 from .auth import Credentials, get_credentials
 from .config import (
@@ -84,4 +85,7 @@ def resolve_account_and_credentials(
         raise AccountFlagsError(e.error_code, str(e)) from e
 
     # AuthMissingError propagates to the caller (CLI subcommand emits auth_missing).
-    return account, get_credentials(account.email)
+    creds = get_credentials(account.email)
+    # Override server with account.server: after v0.1 bootstrap the Keychain
+    # imap-server:<email> entry is deleted; the config is now the source of truth.
+    return account, dc_replace(creds, server=account.server)

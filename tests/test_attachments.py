@@ -40,7 +40,6 @@ def test_find_large_messages_with_age_filter():
 
 def test_attachments_cli_lists_only_no_strip(seeded_mailbox, monkeypatch, tmp_path):
     g = seeded_mailbox
-    from mailbox_cleanup import cli as cli_mod
     from mailbox_cleanup import cli_helpers
     from mailbox_cleanup.auth import Credentials
     from mailbox_cleanup.config import (
@@ -56,7 +55,7 @@ def test_attachments_cli_lists_only_no_strip(seeded_mailbox, monkeypatch, tmp_pa
     save_config(
         Config(
             default="test",
-            accounts=(Account(alias="test", email="test@local", server=g["host"]),),
+            accounts=(Account(alias="test", email="test@local", server=g["host"], port=g["port"]),),
         )
     )
 
@@ -64,7 +63,6 @@ def test_attachments_cli_lists_only_no_strip(seeded_mailbox, monkeypatch, tmp_pa
         email=g["user"], password=g["password"], server=g["host"]
     )
     monkeypatch.setattr(cli_helpers, "get_credentials", fake_creds)
-    monkeypatch.setattr(cli_mod, "_DEFAULT_PORT", g["port"])
     monkeypatch.setenv("MAILBOX_CLEANUP_AUDIT_LOG", str(tmp_path / "audit.log"))
 
     runner = CliRunner()

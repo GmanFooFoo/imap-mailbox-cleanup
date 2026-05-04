@@ -96,7 +96,6 @@ def test_build_report_top_senders_sorted():
 def test_scan_cli_emits_json(seeded_mailbox, monkeypatch, tmp_path):
     g = seeded_mailbox
 
-    from mailbox_cleanup import cli as cli_mod
     from mailbox_cleanup import cli_helpers
     from mailbox_cleanup.auth import Credentials
     from mailbox_cleanup.config import (
@@ -112,7 +111,7 @@ def test_scan_cli_emits_json(seeded_mailbox, monkeypatch, tmp_path):
     save_config(
         Config(
             default="test",
-            accounts=(Account(alias="test", email="test@local", server=g["host"]),),
+            accounts=(Account(alias="test", email="test@local", server=g["host"], port=g["port"]),),
         )
     )
 
@@ -120,7 +119,6 @@ def test_scan_cli_emits_json(seeded_mailbox, monkeypatch, tmp_path):
         return Credentials(email=g["user"], password=g["password"], server=g["host"])
 
     monkeypatch.setattr(cli_helpers, "get_credentials", fake_get_credentials)
-    monkeypatch.setattr(cli_mod, "_DEFAULT_PORT", g["port"])
 
     runner = CliRunner()
     result = runner.invoke(cli, ["scan", "--email", "test", "--json"])

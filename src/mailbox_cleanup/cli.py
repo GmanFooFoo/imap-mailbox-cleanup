@@ -39,8 +39,6 @@ from .operations.unsubscribe import (
 )
 from .scan import build_report
 
-_DEFAULT_PORT = 993
-
 
 def _emit(payload: dict, json_mode: bool) -> None:
     if json_mode:
@@ -147,7 +145,7 @@ def auth_test(account_flag, email_flag, json_mode):
         return
 
     try:
-        with imap_connect(creds) as mb:
+        with imap_connect(creds, port=account.port) as mb:
             folders = [f.name for f in mb.folder.list()]
     except Exception as e:
         _fail(
@@ -386,7 +384,7 @@ def scan_cmd(account_flag, email_flag, folder: str, json_mode: bool):
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
     try:
-        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+        with imap_connect(creds, port=account.port) as mb:
             mb.folder.set(folder)
             messages = list(mb.fetch(headers_only=True, mark_seen=False, bulk=True))
     except Exception as e:
@@ -423,7 +421,7 @@ def senders_cmd(account_flag, email_flag, folder: str, top: int, json_mode: bool
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
     try:
-        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+        with imap_connect(creds, port=account.port) as mb:
             mb.folder.set(folder)
             counter: Counter[str] = Counter()
             for m in mb.fetch(headers_only=True, mark_seen=False, bulk=True):
@@ -496,7 +494,7 @@ def delete_cmd(
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
     try:
-        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+        with imap_connect(creds, port=account.port) as mb:
             res = run_delete(
                 mb,
                 folder=folder,
@@ -577,7 +575,7 @@ def move_cmd(
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
     try:
-        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+        with imap_connect(creds, port=account.port) as mb:
             res = run_move(
                 mb,
                 folder=folder,
@@ -644,7 +642,7 @@ def archive_cmd(account_flag, email_flag, folder, older_than, apply, json_mode):
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
     try:
-        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+        with imap_connect(creds, port=account.port) as mb:
             res = run_archive(mb, folder=folder, older_than=older_than, apply=apply)
     except Exception as e:
         _fail({"error_code": "operation_error", "message": str(e)}, 2, json_mode)
@@ -697,7 +695,7 @@ def dedupe_cmd(account_flag, email_flag, folder, apply, json_mode):
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
     try:
-        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+        with imap_connect(creds, port=account.port) as mb:
             res = run_dedupe(mb, folder=folder, apply=apply)
     except Exception as e:
         _fail({"error_code": "operation_error", "message": str(e)}, 2, json_mode)
@@ -750,7 +748,7 @@ def attachments_cmd(account_flag, email_flag, folder, size_gt, older_than, json_
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
     try:
-        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+        with imap_connect(creds, port=account.port) as mb:
             res = run_attachments(mb, folder=folder, size_gt=size_gt, older_than=older_than)
     except Exception as e:
         _fail({"error_code": "operation_error", "message": str(e)}, 2, json_mode)
@@ -796,7 +794,7 @@ def unsubscribe_cmd(account_flag, email_flag, folder, sender, apply, json_mode):
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
     try:
-        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+        with imap_connect(creds, port=account.port) as mb:
             data = collect_unsub_targets(mb, sender=sender, folder=folder)
             uids = data["uids"]
             actions = data["actions"]
@@ -867,7 +865,7 @@ def bounces_cmd(account_flag, email_flag, folder, apply, json_mode):
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
     try:
-        with imap_connect(creds, port=_DEFAULT_PORT) as mb:
+        with imap_connect(creds, port=account.port) as mb:
             res = run_bounces(mb, folder=folder, apply=apply)
     except Exception as e:
         _fail({"error_code": "operation_error", "message": str(e)}, 2, json_mode)
