@@ -1,0 +1,56 @@
+# IONOS Smoke Test
+
+**Goal:** Verify CLI works end-to-end against the real IONOS mailbox using read-only operations only.
+
+**Pre-conditions:**
+- `mailbox-cleanup` installed (`uv tool install --editable .`)
+- Network access to `imap.ionos.de:993`
+
+## Steps
+
+1. **Set credentials**
+
+   ```bash
+   mailbox-cleanup auth set --email german@rauhut.com --server imap.ionos.de
+   ```
+   At the password prompt, enter the IONOS mailbox password.
+
+2. **Test connection**
+
+   ```bash
+   mailbox-cleanup auth test --email german@rauhut.com --json | jq '.ok, .folders[]'
+   ```
+   Expected: `true` followed by folder names (INBOX, Sent, Papierkorb, ...).
+
+3. **Scan INBOX (read-only)**
+
+   ```bash
+   mailbox-cleanup scan --email german@rauhut.com --json | jq '.total_messages, .size_total_mb'
+   ```
+   Expected: integer count and MB total.
+
+4. **Top senders**
+
+   ```bash
+   mailbox-cleanup senders --email german@rauhut.com --top 10 --json | jq '.senders'
+   ```
+   Expected: list of 10 sender objects.
+
+5. **Find large attachments (read-only)**
+
+   ```bash
+   mailbox-cleanup attachments --email german@rauhut.com --size-gt 10mb --json | jq '.candidate_count'
+   ```
+
+6. **Dry-run delete (no --apply!)**
+
+   ```bash
+   mailbox-cleanup delete --email german@rauhut.com --sender notifications@github.com --json | jq '.dry_run, .affected_count'
+   ```
+   Expected: `true` and a count. Mailbox is unchanged.
+
+## Pass criteria
+
+- All 6 steps complete without errors
+- No `--apply` flag used anywhere — mailbox state unchanged
+- Audit log empty (no operations performed)
