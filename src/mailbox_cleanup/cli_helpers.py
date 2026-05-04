@@ -6,7 +6,7 @@ import os
 import sys
 import warnings
 
-from .auth import AuthMissingError, Credentials, get_credentials
+from .auth import Credentials, get_credentials
 from .config import (
     Account,
     AccountResolutionError,
@@ -83,9 +83,5 @@ def resolve_account_and_credentials(
     except AccountResolutionError as e:
         raise AccountFlagsError(e.error_code, str(e)) from e
 
-    try:
-        creds = get_credentials(account.email)
-    except AuthMissingError:
-        # Re-raise — the CLI subcommand will catch and emit auth_missing
-        raise
-    return account, creds
+    # AuthMissingError propagates to the caller (CLI subcommand emits auth_missing).
+    return account, get_credentials(account.email)
