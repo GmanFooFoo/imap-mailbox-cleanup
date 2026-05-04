@@ -11,41 +11,41 @@
 1. **Set credentials**
 
    ```bash
-   mailbox-cleanup auth set --email german@rauhut.com --server imap.ionos.de
+   mailbox-cleanup auth set --email you@example.com --server imap.ionos.de
    ```
    At the password prompt, enter the IONOS mailbox password.
 
 2. **Test connection**
 
    ```bash
-   mailbox-cleanup auth test --email german@rauhut.com --json | jq '.ok, .folders[]'
+   mailbox-cleanup auth test --email you@example.com --json | jq '.ok, .folders[]'
    ```
    Expected: `true` followed by folder names (INBOX, Sent, Papierkorb, ...).
 
 3. **Scan INBOX (read-only)**
 
    ```bash
-   mailbox-cleanup scan --email german@rauhut.com --json | jq '.total_messages, .size_total_mb'
+   mailbox-cleanup scan --email you@example.com --json | jq '.total_messages, .size_total_mb'
    ```
    Expected: integer count and MB total.
 
 4. **Top senders**
 
    ```bash
-   mailbox-cleanup senders --email german@rauhut.com --top 10 --json | jq '.senders'
+   mailbox-cleanup senders --email you@example.com --top 10 --json | jq '.senders'
    ```
    Expected: list of 10 sender objects.
 
 5. **Find large attachments (read-only)**
 
    ```bash
-   mailbox-cleanup attachments --email german@rauhut.com --size-gt 10mb --json | jq '.candidate_count'
+   mailbox-cleanup attachments --email you@example.com --size-gt 10mb --json | jq '.candidate_count'
    ```
 
 6. **Dry-run delete (no --apply!)**
 
    ```bash
-   mailbox-cleanup delete --email german@rauhut.com --sender notifications@github.com --json | jq '.dry_run, .affected_count'
+   mailbox-cleanup delete --email you@example.com --sender notifications@github.com --json | jq '.dry_run, .affected_count'
    ```
    Expected: `true` and a count. Mailbox is unchanged.
 

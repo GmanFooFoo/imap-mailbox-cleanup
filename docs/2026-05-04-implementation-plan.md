@@ -71,7 +71,7 @@ name = "mailbox-cleanup"
 version = "0.1.0"
 description = "Hybrid CLI + Claude Skill to clean up an IONOS IMAP mailbox"
 requires-python = ">=3.11"
-authors = [{name = "German Rauhut", email = "german@rauhut.com"}]
+authors = [{name = "German Rauhut", email = "you@example.com"}]
 dependencies = [
     "click>=8.1",
     "imap-tools>=1.5",
@@ -3428,41 +3428,41 @@ Documented procedure for verifying the CLI against the real IONOS account. Read-
 1. **Set credentials**
 
    ```bash
-   mailbox-cleanup auth set --email german@rauhut.com --server imap.ionos.de
+   mailbox-cleanup auth set --email you@example.com --server imap.ionos.de
    ```
    At the password prompt, enter the IONOS mailbox password.
 
 2. **Test connection**
 
    ```bash
-   mailbox-cleanup auth test --email german@rauhut.com --json | jq '.ok, .folders[]'
+   mailbox-cleanup auth test --email you@example.com --json | jq '.ok, .folders[]'
    ```
    Expected: `true` followed by folder names (INBOX, Sent, Papierkorb, ...).
 
 3. **Scan INBOX (read-only)**
 
    ```bash
-   mailbox-cleanup scan --email german@rauhut.com --json | jq '.total_messages, .size_total_mb'
+   mailbox-cleanup scan --email you@example.com --json | jq '.total_messages, .size_total_mb'
    ```
    Expected: integer count and MB total.
 
 4. **Top senders**
 
    ```bash
-   mailbox-cleanup senders --email german@rauhut.com --top 10 --json | jq '.senders'
+   mailbox-cleanup senders --email you@example.com --top 10 --json | jq '.senders'
    ```
    Expected: list of 10 sender objects.
 
 5. **Find large attachments (read-only)**
 
    ```bash
-   mailbox-cleanup attachments --email german@rauhut.com --size-gt 10mb --json | jq '.candidate_count'
+   mailbox-cleanup attachments --email you@example.com --size-gt 10mb --json | jq '.candidate_count'
    ```
 
 6. **Dry-run delete (no --apply!)**
 
    ```bash
-   mailbox-cleanup delete --email german@rauhut.com --sender notifications@github.com --json | jq '.dry_run, .affected_count'
+   mailbox-cleanup delete --email you@example.com --sender notifications@github.com --json | jq '.dry_run, .affected_count'
    ```
    Expected: `true` and a count. Mailbox is unchanged.
 
@@ -3503,7 +3503,7 @@ mkdir -p ~/.claude/skills/mailbox-cleanup
 ````markdown
 ---
 name: mailbox-cleanup
-description: Discover and clean up the IONOS IMAP mailbox german@rauhut.com via the `mailbox-cleanup` CLI. Use when the user wants to triage, scan, delete, archive, or unsubscribe from messages in their mail account. Always shows dry-run preview before any destructive operation.
+description: Discover and clean up the IONOS IMAP mailbox you@example.com via the `mailbox-cleanup` CLI. Use when the user wants to triage, scan, delete, archive, or unsubscribe from messages in their mail account. Always shows dry-run preview before any destructive operation.
 ---
 
 # mailbox-cleanup
@@ -3512,7 +3512,7 @@ Conversational orchestrator over the `mailbox-cleanup` CLI. Wraps discovery → 
 
 ## Account
 
-Single IONOS mailbox: `german@rauhut.com`. The CLI reads credentials from macOS Keychain.
+Single IONOS mailbox: `you@example.com`. The CLI reads credentials from macOS Keychain.
 
 ## Required CLI version
 
@@ -3523,16 +3523,16 @@ Schema version 1. The CLI emits `"schema_version": 1` in every JSON response —
 Before any operation, verify the CLI is reachable and authenticated:
 
 ```bash
-mailbox-cleanup auth test --email german@rauhut.com --json
+mailbox-cleanup auth test --email you@example.com --json
 ```
 
 - Exit 0 with `"ok": true`: continue.
-- Exit 3 (`auth_missing`): tell the user to run `mailbox-cleanup auth set --email german@rauhut.com --server imap.ionos.de` in their terminal. Do not proceed.
+- Exit 3 (`auth_missing`): tell the user to run `mailbox-cleanup auth set --email you@example.com --server imap.ionos.de` in their terminal. Do not proceed.
 - Exit 2 (connection): show the message; do not retry blindly.
 
 ## Standard flow
 
-1. Run `mailbox-cleanup scan --email german@rauhut.com --json`.
+1. Run `mailbox-cleanup scan --email you@example.com --json`.
 2. Validate `schema_version == 1`. Otherwise abort.
 3. Render a German Markdown summary:
 
@@ -3566,14 +3566,14 @@ mailbox-cleanup auth test --email german@rauhut.com --json
 
 | User intent | Command |
 |-------------|---------|
-| "Scan" / "Was ist drin?" | `mailbox-cleanup scan --email german@rauhut.com --json` |
-| "Wer schickt am meisten?" | `mailbox-cleanup senders --email german@rauhut.com --top 20 --json` |
-| "Lösch alles von X" | `mailbox-cleanup delete --email german@rauhut.com --sender X --json` (then `--apply`) |
-| "Alles älter als 1 Jahr archivieren" | `mailbox-cleanup archive --email german@rauhut.com --older-than 12m --json` |
-| "Vom Newsletter X abmelden" | `mailbox-cleanup unsubscribe --email german@rauhut.com --sender X --json` |
-| "Bounces wegräumen" | `mailbox-cleanup bounces --email german@rauhut.com --json` |
-| "Duplikate finden" | `mailbox-cleanup dedupe --email german@rauhut.com --json` |
-| "Große Anhänge zeigen" | `mailbox-cleanup attachments --email german@rauhut.com --size-gt 10mb --json` |
+| "Scan" / "Was ist drin?" | `mailbox-cleanup scan --email you@example.com --json` |
+| "Wer schickt am meisten?" | `mailbox-cleanup senders --email you@example.com --top 20 --json` |
+| "Lösch alles von X" | `mailbox-cleanup delete --email you@example.com --sender X --json` (then `--apply`) |
+| "Alles älter als 1 Jahr archivieren" | `mailbox-cleanup archive --email you@example.com --older-than 12m --json` |
+| "Vom Newsletter X abmelden" | `mailbox-cleanup unsubscribe --email you@example.com --sender X --json` |
+| "Bounces wegräumen" | `mailbox-cleanup bounces --email you@example.com --json` |
+| "Duplikate finden" | `mailbox-cleanup dedupe --email you@example.com --json` |
+| "Große Anhänge zeigen" | `mailbox-cleanup attachments --email you@example.com --size-gt 10mb --json` |
 
 ## Exit codes
 

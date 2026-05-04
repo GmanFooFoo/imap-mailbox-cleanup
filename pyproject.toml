@@ -3,6 +3,8 @@ name = "mailbox-cleanup"
 version = "0.1.0"
 description = "Hybrid CLI + Claude Skill to clean up an IONOS IMAP mailbox"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{name = "German Rauhut", email = "german@rauhut.com"}]
 dependencies = [
     "click>=8.1",

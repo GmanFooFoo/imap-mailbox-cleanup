@@ -4,7 +4,7 @@ Hybrid CLI + Claude Code Skill for triaging and cleaning up an IONOS IMAP mailbo
 
 [![CI](https://github.com/GmanFooFoo/mailbox-cleanup/actions/workflows/ci.yml/badge.svg)](https://github.com/GmanFooFoo/mailbox-cleanup/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![License](https://img.shields.io/badge/license-private-lightgrey.svg)](#license)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
 
@@ -288,7 +288,7 @@ CI runs the same on every push. Greenmail starts on port 3143 (plain IMAP) + 302
 
 ## License
 
-Private. Personal tool — not released for general distribution.
+[MIT](LICENSE) — feel free to fork, modify, redistribute. No warranty; built primarily for the author's own IONOS mailbox.
 
 ## Author
 

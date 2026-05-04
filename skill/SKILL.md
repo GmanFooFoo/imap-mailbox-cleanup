@@ -1,15 +1,22 @@
 ---
 name: mailbox-cleanup
-description: Discover and clean up the IONOS IMAP mailbox german@rauhut.com via the `mailbox-cleanup` CLI. Use when the user wants to triage, scan, delete, archive, or unsubscribe from messages in their mail account. Always shows dry-run preview before any destructive operation.
+description: Discover and clean up an IONOS IMAP mailbox via the `mailbox-cleanup` CLI. Use when the user wants to triage, scan, delete, archive, or unsubscribe from messages in their mail account. Always shows dry-run preview before any destructive operation.
 ---
 
 # mailbox-cleanup
 
 Conversational orchestrator over the `mailbox-cleanup` CLI. Wraps discovery → preview → apply loops with safety checks.
 
-## Account
+## Account email
 
-Single IONOS mailbox: `german@rauhut.com`. The CLI reads credentials from macOS Keychain.
+The CLI is currently designed for a single mailbox (multi-account support is v2). Get the user's IONOS email address **on first invocation in a session**, then reuse it consistently in all CLI calls.
+
+How to get it:
+1. If the environment variable `MAILBOX_CLEANUP_EMAIL` is set, use that.
+2. Otherwise, ask the user: "Welche IONOS-Mailbox soll ich aufräumen? (z.B. `name@example.com`)"
+3. Once you have it, store it in your working memory for the session and substitute it into every `--email` flag below.
+
+In the rest of this document, `<EMAIL>` is the placeholder — replace it with the user's actual email when constructing CLI calls.
 
 ## Required CLI version
 
@@ -20,16 +27,16 @@ Schema version 1. The CLI emits `"schema_version": 1` in every JSON response —
 Before any operation, verify the CLI is reachable and authenticated:
 
 ```bash
-mailbox-cleanup auth test --email german@rauhut.com --json
+mailbox-cleanup auth test --email <EMAIL> --json
 ```
 
 - Exit 0 with `"ok": true`: continue.
-- Exit 3 (`auth_missing`): tell the user to run `mailbox-cleanup auth set --email german@rauhut.com --server imap.ionos.de` in their terminal. Do not proceed.
+- Exit 3 (`auth_missing`): tell the user to run `mailbox-cleanup auth set --email <EMAIL> --server imap.ionos.de` in their terminal (Terminal.app / iTerm — `getpass` requires a TTY). Do not proceed.
 - Exit 2 (connection): show the message; do not retry blindly.
 
 ## Standard flow
 
-1. Run `mailbox-cleanup scan --email german@rauhut.com --json`.
+1. Run `mailbox-cleanup scan --email <EMAIL> --json`.
 2. Validate `schema_version == 1`. Otherwise abort.
 3. Render a German Markdown summary:
 
@@ -61,16 +68,18 @@ mailbox-cleanup auth test --email german@rauhut.com --json
 
 ## Subcommand cheat sheet
 
+Replace `<EMAIL>` with the user's email when issuing each command.
+
 | User intent | Command |
 |-------------|---------|
-| "Scan" / "Was ist drin?" | `mailbox-cleanup scan --email german@rauhut.com --json` |
-| "Wer schickt am meisten?" | `mailbox-cleanup senders --email german@rauhut.com --top 20 --json` |
-| "Lösch alles von X" | `mailbox-cleanup delete --email german@rauhut.com --sender X --json` (then `--apply`) |
-| "Alles älter als 1 Jahr archivieren" | `mailbox-cleanup archive --email german@rauhut.com --older-than 12m --json` |
-| "Vom Newsletter X abmelden" | `mailbox-cleanup unsubscribe --email german@rauhut.com --sender X --json` |
-| "Bounces wegräumen" | `mailbox-cleanup bounces --email german@rauhut.com --json` |
-| "Duplikate finden" | `mailbox-cleanup dedupe --email german@rauhut.com --json` |
-| "Große Anhänge zeigen" | `mailbox-cleanup attachments --email german@rauhut.com --size-gt 10mb --json` |
+| "Scan" / "Was ist drin?" | `mailbox-cleanup scan --email <EMAIL> --json` |
+| "Wer schickt am meisten?" | `mailbox-cleanup senders --email <EMAIL> --top 20 --json` |
+| "Lösch alles von X" | `mailbox-cleanup delete --email <EMAIL> --sender X --json` (then `--apply`) |
+| "Alles älter als 1 Jahr archivieren" | `mailbox-cleanup archive --email <EMAIL> --older-than 12m --json` |
+| "Vom Newsletter X abmelden" | `mailbox-cleanup unsubscribe --email <EMAIL> --sender X --json` |
+| "Bounces wegräumen" | `mailbox-cleanup bounces --email <EMAIL> --json` |
+| "Duplikate finden" | `mailbox-cleanup dedupe --email <EMAIL> --json` |
+| "Große Anhänge zeigen" | `mailbox-cleanup attachments --email <EMAIL> --size-gt 10mb --json` |
 
 ## Exit codes
 
