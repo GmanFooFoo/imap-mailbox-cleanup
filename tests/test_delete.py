@@ -8,13 +8,29 @@ from mailbox_cleanup.cli import cli
 def _make_runner_env(seeded_mailbox, monkeypatch, tmp_path):
     g = seeded_mailbox
     from mailbox_cleanup import cli as cli_mod
+    from mailbox_cleanup import cli_helpers
     from mailbox_cleanup.auth import Credentials
-
-    monkeypatch.setattr(
-        cli_mod,
-        "get_credentials",
-        lambda email: Credentials(email=g["user"], password=g["password"], server=g["host"]),
+    from mailbox_cleanup.config import (
+        DEFAULT_CONFIG_PATH_ENV,
+        Account,
+        Config,
+        save_config,
     )
+
+    cfg_path = tmp_path / "cfg.json"
+    monkeypatch.setenv(DEFAULT_CONFIG_PATH_ENV, str(cfg_path))
+    monkeypatch.delenv("MAILBOX_CLEANUP_ACCOUNT", raising=False)
+    save_config(
+        Config(
+            default="test",
+            accounts=(Account(alias="test", email="test@local", server=g["host"]),),
+        )
+    )
+
+    fake_creds = lambda email: Credentials(  # noqa: E731
+        email=g["user"], password=g["password"], server=g["host"]
+    )
+    monkeypatch.setattr(cli_helpers, "get_credentials", fake_creds)
     monkeypatch.setattr(cli_mod, "_DEFAULT_PORT", g["port"])
     monkeypatch.setenv("MAILBOX_CLEANUP_AUDIT_LOG", str(tmp_path / "audit.log"))
 

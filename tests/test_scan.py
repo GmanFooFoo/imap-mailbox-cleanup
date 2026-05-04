@@ -93,16 +93,33 @@ def test_build_report_top_senders_sorted():
     assert senders[1]["count"] == 2
 
 
-def test_scan_cli_emits_json(seeded_mailbox, monkeypatch):
+def test_scan_cli_emits_json(seeded_mailbox, monkeypatch, tmp_path):
     g = seeded_mailbox
 
     from mailbox_cleanup import cli as cli_mod
+    from mailbox_cleanup import cli_helpers
     from mailbox_cleanup.auth import Credentials
+    from mailbox_cleanup.config import (
+        DEFAULT_CONFIG_PATH_ENV,
+        Account,
+        Config,
+        save_config,
+    )
+
+    cfg_path = tmp_path / "cfg.json"
+    monkeypatch.setenv(DEFAULT_CONFIG_PATH_ENV, str(cfg_path))
+    monkeypatch.delenv("MAILBOX_CLEANUP_ACCOUNT", raising=False)
+    save_config(
+        Config(
+            default="test",
+            accounts=(Account(alias="test", email="test@local", server=g["host"]),),
+        )
+    )
 
     def fake_get_credentials(email):
         return Credentials(email=g["user"], password=g["password"], server=g["host"])
 
-    monkeypatch.setattr(cli_mod, "get_credentials", fake_get_credentials)
+    monkeypatch.setattr(cli_helpers, "get_credentials", fake_get_credentials)
     monkeypatch.setattr(cli_mod, "_DEFAULT_PORT", g["port"])
 
     runner = CliRunner()

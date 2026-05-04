@@ -11,7 +11,6 @@ from .audit import log_action
 from .auth import (
     AuthMissingError,
     delete_credentials,
-    get_credentials,
     set_credentials,
 )
 from .cli_helpers import AccountFlagsError, resolve_account_and_credentials
@@ -370,13 +369,19 @@ def config_remove(alias: str):
 
 
 @cli.command("scan")
-@click.option("--email", required=True)
+@click.option("--account", "account_flag", default=None, help="Alias or email.")
+@click.option("--email", "email_flag", default=None, help="Deprecated; use --account.")
 @click.option("--folder", default="INBOX", show_default=True)
 @click.option("--json", "json_mode", is_flag=True)
-def scan_cmd(email: str, folder: str, json_mode: bool):
+def scan_cmd(account_flag, email_flag, folder: str, json_mode: bool):
     """Scan a folder, classify messages, emit a discovery report."""
     try:
-        creds = get_credentials(email)
+        account, creds = resolve_account_and_credentials(
+            account_flag=account_flag, email_flag=email_flag
+        )
+    except AccountFlagsError as e:
+        _fail({"error_code": e.error_code, "message": str(e)}, 4, json_mode)
+        return
     except AuthMissingError as e:
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
@@ -400,14 +405,20 @@ def scan_cmd(email: str, folder: str, json_mode: bool):
 
 
 @cli.command("senders")
-@click.option("--email", required=True)
+@click.option("--account", "account_flag", default=None, help="Alias or email.")
+@click.option("--email", "email_flag", default=None, help="Deprecated; use --account.")
 @click.option("--folder", default="INBOX", show_default=True)
 @click.option("--top", default=50, show_default=True, type=int)
 @click.option("--json", "json_mode", is_flag=True)
-def senders_cmd(email: str, folder: str, top: int, json_mode: bool):
+def senders_cmd(account_flag, email_flag, folder: str, top: int, json_mode: bool):
     """List the top-N senders by message count."""
     try:
-        creds = get_credentials(email)
+        account, creds = resolve_account_and_credentials(
+            account_flag=account_flag, email_flag=email_flag
+        )
+    except AccountFlagsError as e:
+        _fail({"error_code": e.error_code, "message": str(e)}, 4, json_mode)
+        return
     except AuthMissingError as e:
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
@@ -448,7 +459,8 @@ def _require_filter(sender, subject_contains, older_than, json_mode):
 
 
 @cli.command("delete")
-@click.option("--email", required=True)
+@click.option("--account", "account_flag", default=None, help="Alias or email.")
+@click.option("--email", "email_flag", default=None, help="Deprecated; use --account.")
 @click.option("--folder", default="INBOX", show_default=True)
 @click.option("--sender", default=None)
 @click.option("--subject-contains", default=None)
@@ -460,11 +472,26 @@ def _require_filter(sender, subject_contains, older_than, json_mode):
     help="Actually move to Trash. Without --apply this is a dry-run.",
 )
 @click.option("--json", "json_mode", is_flag=True)
-def delete_cmd(email, folder, sender, subject_contains, older_than, limit, apply, json_mode):
+def delete_cmd(
+    account_flag,
+    email_flag,
+    folder,
+    sender,
+    subject_contains,
+    older_than,
+    limit,
+    apply,
+    json_mode,
+):
     """Soft-delete messages matching filter (move to Trash)."""
     _require_filter(sender, subject_contains, older_than, json_mode)
     try:
-        creds = get_credentials(email)
+        account, creds = resolve_account_and_credentials(
+            account_flag=account_flag, email_flag=email_flag
+        )
+    except AccountFlagsError as e:
+        _fail({"error_code": e.error_code, "message": str(e)}, 4, json_mode)
+        return
     except AuthMissingError as e:
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
@@ -514,7 +541,8 @@ def delete_cmd(email, folder, sender, subject_contains, older_than, limit, apply
 
 
 @cli.command("move")
-@click.option("--email", required=True)
+@click.option("--account", "account_flag", default=None, help="Alias or email.")
+@click.option("--email", "email_flag", default=None, help="Deprecated; use --account.")
 @click.option("--folder", default="INBOX", show_default=True)
 @click.option("--to", "target", required=True, help="Destination folder.")
 @click.option("--sender", default=None)
@@ -523,11 +551,27 @@ def delete_cmd(email, folder, sender, subject_contains, older_than, limit, apply
 @click.option("--limit", default=None, type=int)
 @click.option("--apply", is_flag=True)
 @click.option("--json", "json_mode", is_flag=True)
-def move_cmd(email, folder, target, sender, subject_contains, older_than, limit, apply, json_mode):
+def move_cmd(
+    account_flag,
+    email_flag,
+    folder,
+    target,
+    sender,
+    subject_contains,
+    older_than,
+    limit,
+    apply,
+    json_mode,
+):
     """Move messages matching filter to target folder."""
     _require_filter(sender, subject_contains, older_than, json_mode)
     try:
-        creds = get_credentials(email)
+        account, creds = resolve_account_and_credentials(
+            account_flag=account_flag, email_flag=email_flag
+        )
+    except AccountFlagsError as e:
+        _fail({"error_code": e.error_code, "message": str(e)}, 4, json_mode)
+        return
     except AuthMissingError as e:
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
@@ -579,15 +623,21 @@ def move_cmd(email, folder, target, sender, subject_contains, older_than, limit,
 
 
 @cli.command("archive")
-@click.option("--email", required=True)
+@click.option("--account", "account_flag", default=None, help="Alias or email.")
+@click.option("--email", "email_flag", default=None, help="Deprecated; use --account.")
 @click.option("--folder", default="INBOX", show_default=True)
 @click.option("--older-than", required=True, help="e.g. 12m, 2y")
 @click.option("--apply", is_flag=True)
 @click.option("--json", "json_mode", is_flag=True)
-def archive_cmd(email, folder, older_than, apply, json_mode):
+def archive_cmd(account_flag, email_flag, folder, older_than, apply, json_mode):
     """Bulk-move messages older than N into Archive/YYYY subfolders."""
     try:
-        creds = get_credentials(email)
+        account, creds = resolve_account_and_credentials(
+            account_flag=account_flag, email_flag=email_flag
+        )
+    except AccountFlagsError as e:
+        _fail({"error_code": e.error_code, "message": str(e)}, 4, json_mode)
+        return
     except AuthMissingError as e:
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
@@ -626,14 +676,20 @@ def archive_cmd(email, folder, older_than, apply, json_mode):
 
 
 @cli.command("dedupe")
-@click.option("--email", required=True)
+@click.option("--account", "account_flag", default=None, help="Alias or email.")
+@click.option("--email", "email_flag", default=None, help="Deprecated; use --account.")
 @click.option("--folder", default="INBOX", show_default=True)
 @click.option("--apply", is_flag=True)
 @click.option("--json", "json_mode", is_flag=True)
-def dedupe_cmd(email, folder, apply, json_mode):
+def dedupe_cmd(account_flag, email_flag, folder, apply, json_mode):
     """Move duplicate-by-Message-ID copies to Trash, keep the oldest."""
     try:
-        creds = get_credentials(email)
+        account, creds = resolve_account_and_credentials(
+            account_flag=account_flag, email_flag=email_flag
+        )
+    except AccountFlagsError as e:
+        _fail({"error_code": e.error_code, "message": str(e)}, 4, json_mode)
+        return
     except AuthMissingError as e:
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
@@ -671,15 +727,21 @@ def dedupe_cmd(email, folder, apply, json_mode):
 
 
 @cli.command("attachments")
-@click.option("--email", required=True)
+@click.option("--account", "account_flag", default=None, help="Alias or email.")
+@click.option("--email", "email_flag", default=None, help="Deprecated; use --account.")
 @click.option("--folder", default="INBOX", show_default=True)
 @click.option("--size-gt", default="10mb", show_default=True)
 @click.option("--older-than", default=None)
 @click.option("--json", "json_mode", is_flag=True)
-def attachments_cmd(email, folder, size_gt, older_than, json_mode):
+def attachments_cmd(account_flag, email_flag, folder, size_gt, older_than, json_mode):
     """Find large messages. Stripping deferred to v2 — this lists candidates only."""
     try:
-        creds = get_credentials(email)
+        account, creds = resolve_account_and_credentials(
+            account_flag=account_flag, email_flag=email_flag
+        )
+    except AccountFlagsError as e:
+        _fail({"error_code": e.error_code, "message": str(e)}, 4, json_mode)
+        return
     except AuthMissingError as e:
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
@@ -711,15 +773,21 @@ def attachments_cmd(email, folder, size_gt, older_than, json_mode):
 
 
 @cli.command("unsubscribe")
-@click.option("--email", required=True)
+@click.option("--account", "account_flag", default=None, help="Alias or email.")
+@click.option("--email", "email_flag", default=None, help="Deprecated; use --account.")
 @click.option("--folder", default="INBOX", show_default=True)
 @click.option("--sender", required=True)
 @click.option("--apply", is_flag=True)
 @click.option("--json", "json_mode", is_flag=True)
-def unsubscribe_cmd(email, folder, sender, apply, json_mode):
+def unsubscribe_cmd(account_flag, email_flag, folder, sender, apply, json_mode):
     """Parse List-Unsubscribe header for sender, optionally execute (HTTPS or mailto)."""
     try:
-        creds = get_credentials(email)
+        account, creds = resolve_account_and_credentials(
+            account_flag=account_flag, email_flag=email_flag
+        )
+    except AccountFlagsError as e:
+        _fail({"error_code": e.error_code, "message": str(e)}, 4, json_mode)
+        return
     except AuthMissingError as e:
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
@@ -776,14 +844,20 @@ def unsubscribe_cmd(email, folder, sender, apply, json_mode):
 
 
 @cli.command("bounces")
-@click.option("--email", required=True)
+@click.option("--account", "account_flag", default=None, help="Alias or email.")
+@click.option("--email", "email_flag", default=None, help="Deprecated; use --account.")
 @click.option("--folder", default="INBOX", show_default=True)
 @click.option("--apply", is_flag=True)
 @click.option("--json", "json_mode", is_flag=True)
-def bounces_cmd(email, folder, apply, json_mode):
+def bounces_cmd(account_flag, email_flag, folder, apply, json_mode):
     """Find bounce/auto-reply messages, optionally move to Trash."""
     try:
-        creds = get_credentials(email)
+        account, creds = resolve_account_and_credentials(
+            account_flag=account_flag, email_flag=email_flag
+        )
+    except AccountFlagsError as e:
+        _fail({"error_code": e.error_code, "message": str(e)}, 4, json_mode)
+        return
     except AuthMissingError as e:
         _fail({"error_code": "auth_missing", "message": str(e)}, 3, json_mode)
         return
