@@ -8,6 +8,8 @@ import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+import keyring
+
 
 def derive_provider(server: str) -> str:
     """Map an IMAP server hostname to a provider label.
@@ -245,3 +247,38 @@ def resolve_account(cfg: Config, *, flag: str | None, env: str | None) -> Accoun
         "set MAILBOX_CLEANUP_ACCOUNT=, or run "
         "'mailbox-cleanup config set-default <alias>'.",
     )
+
+
+V01_SERVICE_NAME = "mailbox-cleanup"
+V01_SERVER_KEY_PREFIX = "imap-server:"
+V01_DEFAULT_SERVER = "imap.ionos.de"
+
+
+def bootstrap_from_v01_keychain(email: str) -> Config:
+    """Create a v0.2 config from a v0.1 single-account Keychain entry.
+
+    Reads the password (must exist) and the optional imap-server entry,
+    derives alias and provider, writes config.json, deletes the obsolete
+    imap-server key.
+
+    Raises ConfigError if no v0.1 password is in Keychain for the email.
+    """
+    if keyring.get_password(V01_SERVICE_NAME, email) is None:
+        raise ConfigError(
+            f"Bootstrap failed: no v0.1 credentials in Keychain for {email!r}"
+        )
+    server = (
+        keyring.get_password(V01_SERVICE_NAME, f"{V01_SERVER_KEY_PREFIX}{email}")
+        or V01_DEFAULT_SERVER
+    )
+    alias = derive_alias_from_email(email)
+    account = Account(alias=alias, email=email, server=server, port=993)
+    cfg = Config(default=alias, accounts=(account,))
+    save_config(cfg)
+    # Clean up obsolete v0.1 server key. keyring backends raise varied exceptions
+    # (no entry, locked keychain, backend down). Treat all as best-effort.
+    try:
+        keyring.delete_password(V01_SERVICE_NAME, f"{V01_SERVER_KEY_PREFIX}{email}")
+    except Exception:  # noqa: BLE001 — backend-agnostic best-effort cleanup
+        pass
+    return cfg

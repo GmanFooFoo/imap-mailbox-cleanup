@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 
 import pytest
 
@@ -8,6 +9,7 @@ from mailbox_cleanup.config import (
     AccountResolutionError,
     Config,
     ConfigError,
+    bootstrap_from_v01_keychain,
     config_path,
     derive_alias_from_email,
     derive_provider,
@@ -420,3 +422,84 @@ def test_resolution_error_carries_error_code():
     with pytest.raises(AccountResolutionError) as exc_info:
         resolve_account(cfg, flag=None, env=None)
     assert exc_info.value.error_code == "no_account_selected"
+
+
+def test_bootstrap_creates_config_for_known_email(tmp_path, monkeypatch):
+    p = tmp_path / "cfg.json"
+    monkeypatch.setenv(DEFAULT_CONFIG_PATH_ENV, str(p))
+    fake_kr = {
+        ("mailbox-cleanup", "german@rauhut.com"): "secret",
+        ("mailbox-cleanup", "imap-server:german@rauhut.com"): "imap.ionos.de",
+    }
+
+    def fake_get(service, key):
+        return fake_kr.get((service, key))
+
+    def fake_delete(service, key):
+        fake_kr.pop((service, key), None)
+
+    with patch("mailbox_cleanup.config.keyring") as kr:
+        kr.get_password.side_effect = fake_get
+        kr.delete_password.side_effect = fake_delete
+        cfg = bootstrap_from_v01_keychain("german@rauhut.com")
+
+    assert cfg.default == "german"
+    assert cfg.accounts[0].alias == "german"
+    assert cfg.accounts[0].email == "german@rauhut.com"
+    assert cfg.accounts[0].server == "imap.ionos.de"
+    assert cfg.accounts[0].provider == "ionos"
+    loaded = load_config()
+    assert loaded.default == "german"
+    assert ("mailbox-cleanup", "imap-server:german@rauhut.com") not in fake_kr
+    # password entry preserved
+    assert ("mailbox-cleanup", "german@rauhut.com") in fake_kr
+
+
+def test_bootstrap_unknown_email_raises(tmp_path, monkeypatch):
+    p = tmp_path / "cfg.json"
+    monkeypatch.setenv(DEFAULT_CONFIG_PATH_ENV, str(p))
+    with patch("mailbox_cleanup.config.keyring") as kr:
+        kr.get_password.return_value = None
+        with pytest.raises(ConfigError, match="no v0.1 credentials"):
+            bootstrap_from_v01_keychain("nobody@x.de")
+    # Config file must NOT have been written on failure
+    assert not p.exists()
+
+
+def test_bootstrap_default_server_when_imap_server_key_missing(tmp_path, monkeypatch):
+    p = tmp_path / "cfg.json"
+    monkeypatch.setenv(DEFAULT_CONFIG_PATH_ENV, str(p))
+    fake_kr = {("mailbox-cleanup", "user@x.de"): "pw"}
+
+    def fake_get(service, key):
+        return fake_kr.get((service, key))
+
+    with patch("mailbox_cleanup.config.keyring") as kr:
+        kr.get_password.side_effect = fake_get
+        kr.delete_password.return_value = None
+        cfg = bootstrap_from_v01_keychain("user@x.de")
+
+    assert cfg.accounts[0].server == "imap.ionos.de"
+    assert cfg.accounts[0].provider == "ionos"
+
+
+def test_bootstrap_keyring_delete_failure_is_swallowed(tmp_path, monkeypatch):
+    """Keyring backends raise varied exceptions on delete; bootstrap must succeed
+    even if the obsolete imap-server key cannot be removed."""
+    p = tmp_path / "cfg.json"
+    monkeypatch.setenv(DEFAULT_CONFIG_PATH_ENV, str(p))
+    fake_kr = {("mailbox-cleanup", "user@x.de"): "pw"}
+
+    def fake_get(service, key):
+        return fake_kr.get((service, key))
+
+    def boom(service, key):
+        raise RuntimeError("keyring backend exploded")
+
+    with patch("mailbox_cleanup.config.keyring") as kr:
+        kr.get_password.side_effect = fake_get
+        kr.delete_password.side_effect = boom
+        cfg = bootstrap_from_v01_keychain("user@x.de")
+
+    assert cfg.accounts[0].alias == "user"
+    assert load_config().default == "user"
