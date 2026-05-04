@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
+import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 
 def derive_provider(server: str) -> str:
@@ -131,3 +134,56 @@ def validate_config(data: dict) -> Config:
         )
 
     return Config(default=default, accounts=accounts, schema_version=SCHEMA_VERSION)
+
+
+DEFAULT_CONFIG_PATH_ENV = "MAILBOX_CLEANUP_CONFIG"
+DEFAULT_CONFIG_PATH = Path.home() / ".mailbox-cleanup" / "config.json"
+
+
+def config_path() -> Path:
+    """Return the active config path. Honors the env var override."""
+    override = os.environ.get(DEFAULT_CONFIG_PATH_ENV)
+    return Path(override) if override else DEFAULT_CONFIG_PATH
+
+
+def _to_dict(cfg: Config) -> dict:
+    return {
+        "schema_version": cfg.schema_version,
+        "default": cfg.default,
+        "accounts": [asdict(a) for a in cfg.accounts],
+    }
+
+
+def save_config(cfg: Config) -> None:
+    """Write config atomically (tmp + rename) with mode 0600 / parent 0700."""
+    path = config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    os.chmod(path.parent, 0o700)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    payload = json.dumps(_to_dict(cfg), ensure_ascii=False, indent=2)
+    fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(payload)
+    except Exception:
+        if tmp.exists():
+            tmp.unlink()
+        raise
+    os.replace(tmp, path)
+    os.chmod(path, 0o600)
+
+
+def load_config() -> Config:
+    """Read and validate config from the active path.
+
+    Raises FileNotFoundError if the file is missing, ConfigError on parse or
+    schema problems.
+    """
+    path = config_path()
+    if not path.exists():
+        raise FileNotFoundError(f"Config not found: {path}")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise ConfigError(f"Could not parse config at {path}: {e}") from e
+    return validate_config(data)

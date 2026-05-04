@@ -1,11 +1,17 @@
+import json
+
 import pytest
 
 from mailbox_cleanup.config import (
+    DEFAULT_CONFIG_PATH_ENV,
     Account,
     Config,
     ConfigError,
+    config_path,
     derive_alias_from_email,
     derive_provider,
+    load_config,
+    save_config,
     validate_config,
 )
 
@@ -235,3 +241,89 @@ def test_validate_config_accounts_must_be_list_raises():
     data = {"schema_version": 1, "default": None, "accounts": "not-a-list"}
     with pytest.raises(ConfigError, match="accounts"):
         validate_config(data)
+
+
+def test_default_config_path_env_override(monkeypatch, tmp_path):
+    target = tmp_path / "elsewhere" / "config.json"
+    monkeypatch.setenv(DEFAULT_CONFIG_PATH_ENV, str(target))
+    assert config_path() == target
+
+
+def test_save_and_load_roundtrip(tmp_path, monkeypatch):
+    p = tmp_path / "cfg" / "config.json"
+    monkeypatch.setenv(DEFAULT_CONFIG_PATH_ENV, str(p))
+    cfg = Config(
+        default="work",
+        accounts=(
+            Account(alias="work", email="a@b.de", server="imap.ionos.de"),
+        ),
+    )
+    save_config(cfg)
+    assert p.exists()
+    loaded = load_config()
+    assert loaded.default == "work"
+    assert loaded.accounts[0].alias == "work"
+    assert loaded.accounts[0].provider == "ionos"
+
+
+def test_save_config_sets_secure_mode(tmp_path, monkeypatch):
+    p = tmp_path / "cfg" / "config.json"
+    monkeypatch.setenv(DEFAULT_CONFIG_PATH_ENV, str(p))
+    save_config(Config(default=None, accounts=()))
+    assert oct(p.stat().st_mode & 0o777) == oct(0o600)
+    assert oct(p.parent.stat().st_mode & 0o777) == oct(0o700)
+
+
+def test_load_config_missing_raises(tmp_path, monkeypatch):
+    p = tmp_path / "nope.json"
+    monkeypatch.setenv(DEFAULT_CONFIG_PATH_ENV, str(p))
+    with pytest.raises(FileNotFoundError):
+        load_config()
+
+
+def test_load_config_corrupt_json_raises(tmp_path, monkeypatch):
+    p = tmp_path / "cfg.json"
+    p.write_text("{not valid json")
+    monkeypatch.setenv(DEFAULT_CONFIG_PATH_ENV, str(p))
+    with pytest.raises(ConfigError, match="parse"):
+        load_config()
+
+
+def test_save_config_atomic_write(tmp_path, monkeypatch):
+    p = tmp_path / "cfg.json"
+    monkeypatch.setenv(DEFAULT_CONFIG_PATH_ENV, str(p))
+    save_config(Config(default=None, accounts=()))
+    leftovers = list(tmp_path.glob("*.tmp"))
+    assert leftovers == [], f"unexpected temp files: {leftovers}"
+    save_config(
+        Config(
+            default="x",
+            accounts=(Account(alias="x", email="a@b.de", server="imap.ionos.de"),),
+        )
+    )
+    data = json.loads(p.read_text())
+    assert data["default"] == "x"
+
+
+def test_save_config_serialises_all_account_fields(tmp_path, monkeypatch):
+    """Round-trip preserves alias, email, server, port, provider, schema_version."""
+    p = tmp_path / "cfg.json"
+    monkeypatch.setenv(DEFAULT_CONFIG_PATH_ENV, str(p))
+    cfg = Config(
+        default="work",
+        accounts=(
+            Account(
+                alias="work",
+                email="a@b.de",
+                server="imap.gmail.com",
+                port=12345,
+                provider="custom",
+            ),
+        ),
+    )
+    save_config(cfg)
+    data = json.loads(p.read_text())
+    assert data["schema_version"] == 1
+    assert data["default"] == "work"
+    assert data["accounts"][0]["port"] == 12345
+    assert data["accounts"][0]["provider"] == "custom"
