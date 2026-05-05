@@ -6,7 +6,7 @@
 
 Hybrid CLI + Claude Code Skill for triaging and cleaning up an IONOS IMAP mailbox. Dry-run by default, audit-logged, soft-delete-only. Multi-account capable.
 
-[![CI](https://github.com/GmanFooFoo/imap-mailbox-cleanup/actions/workflows/ci.yml/badge.svg)](https://github.com/GmanFooFoo/imap-mailbox-cleanup/actions/workflows/ci.yml)
+[![CI](https://github.com/neckarshore-ai/imap-mailbox-cleanup/actions/workflows/ci.yml/badge.svg)](https://github.com/neckarshore-ai/imap-mailbox-cleanup/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -65,7 +65,7 @@ State files (per user):
 Requires Python 3.11+ and [`uv`](https://docs.astral.sh/uv/) (`brew install uv`).
 
 ```bash
-git clone https://github.com/GmanFooFoo/imap-mailbox-cleanup.git
+git clone https://github.com/neckarshore-ai/imap-mailbox-cleanup.git
 cd imap-mailbox-cleanup
 uv tool install --editable .
 ```
@@ -328,9 +328,11 @@ mailbox-cleanup/
 │       └── bounces.py
 ├── tests/                                 ← unit + integration via Greenmail Docker
 ├── docs/
-│   ├── 2026-05-04-design.md               ← spec
-│   ├── 2026-05-04-implementation-plan.md  ← TDD plan
-│   └── smoke-test.md                      ← read-only IONOS smoke test
+│   ├── 2026-05-04-design.md                       ← v0.1 spec
+│   ├── 2026-05-04-implementation-plan.md           ← v0.1 TDD plan
+│   ├── 2026-05-04-multi-account-design.md          ← v0.2 spec
+│   ├── 2026-05-04-multi-account-implementation-plan.md  ← v0.2 TDD plan
+│   └── smoke-test.md                               ← read-only IONOS smoke test
 ├── skill/SKILL.md                         ← versioned Claude Code skill copy
 └── .github/workflows/ci.yml               ← GitHub Actions
 ```
@@ -355,7 +357,7 @@ CI runs the same on every push. Greenmail starts on port 3143 (plain IMAP) + 302
 5. Rule-based classification only — no ML / LLM in CLI (Skill can layer it on)
 6. `auth set` requires a real TTY — no `--password-stdin` yet (v2)
 
-## v2 backlog
+## v0.3+ backlog
 
 - Provider abstraction (Gmail API / OAuth)
 - Fuzzy duplicate detection
