@@ -122,6 +122,63 @@ Replace `<ACCOUNT>` with the chosen alias (or omit the `--account` flag when onl
 
 Path: `~/.mailbox-cleanup/audit.log`. Append-only JSONL, one record per `--apply` action. Each record now includes an `account` field identifying which alias performed the action. Treat `account` as **optional** for backward compatibility — v0.1 entries pre-date the multi-account schema and may not have it.
 
+## When the CLI isn't enough — ad-hoc Python
+
+Some operations are beyond the CLI subcommands: creating folders, cross-folder bulk scans, date-range deletions across all folders, or subject-keyword classification. Use `uv run python3 -` from the project directory (system Python lacks `keyring`):
+
+```python
+from imap_tools import MailBox, A
+import keyring, json
+from pathlib import Path
+from datetime import date
+
+cfg = json.loads(Path("~/.mailbox-cleanup/config.json".replace("~", str(Path.home()))).read_text())
+acct = next(a for a in cfg["accounts"] if a["alias"] == "<ALIAS>")
+pw = keyring.get_password("mailbox-cleanup", acct["email"])
+
+with MailBox(acct["server"]).login(acct["email"], pw) as mb:
+    # create a folder
+    mb.folder.create("Archiv vor 2025/Neuanmeldungen")
+
+    # switch folder and search
+    mb.folder.set("INBOX")
+    uids = mb.uids(A(date_lt=date(2023, 1, 1)))
+
+    # move in batches of 500 (required for >500 UIDs — see Batching below)
+    for i in range(0, len(uids), 500):
+        mb.move(uids[i:i+500], "Papierkorb")
+```
+
+**Always do a count-only run first** (no `mb.move`), show the number to the user, ask for confirmation, then apply. This is the ad-hoc equivalent of the CLI dry-run rule.
+
+### IMAP Search Umlaut trap
+
+`A(subject="Verlängerung")` → `UnicodeEncodeError: 'ascii' codec can't encode character`. IMAP SEARCH is ASCII-only. Workarounds:
+
+- Use the ASCII transliteration: `"Verlaengerung"`
+- Use the English equivalent from bilingual subjects: `"Renewal"`, `"Extension"`, `"Signup"`
+- Combine multiple keyword searches and union the UID sets
+
+### Batching for large moves
+
+`mb.move(uids, folder)` times out or errors on large UID lists. Always batch at 500:
+
+```python
+for i in range(0, len(uids), 500):
+    mb.move(uids[i:i+500], target_folder)
+```
+
+### Cross-folder scan pattern
+
+```python
+SKIP = {"Papierkorb", "Entwürfe", "Spam"}
+for folder in [f.name for f in mb.folder.list() if f.name not in SKIP]:
+    mb.folder.set(folder)
+    uids = mb.uids(A(from_="facebookmail.com"))
+    if uids:
+        mb.move(uids, "Papierkorb")
+```
+
 ## Hard rules
 
 1. **Never call any subcommand with `--apply` without showing a dry-run preview first and getting explicit "ja" / "yes" / "apply" from the user.**
